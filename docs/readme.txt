@@ -17,7 +17,7 @@
 ╒────────────╕
 │INSTALLATION│
 ╘────────────╛
-	First, make sure you have the Deus Ex v1112fm patch installed. This is very important, and make sure you install the right one!
+	First, make sure you have the Deus Ex v1112fm patch installed. This is very important, and make sure you install the right one! v1112fm is the multiplayer patch; the singleplayer-only patch won't work.
 	Second, install Kentie's new Deus Ex executable (http://kentie.net/article/dxguide/) from which to run the game. This isn't strictly necessary, but you'll need it for the widescreen fixes to work or make sense, and to have the proper field-of-vision, plus it fixes other problems and there's just no reason not to. You might also want to check out his DirectX 10 renderer, if you're on Windows Vista or Windows 7, but it's in no way necessary to run this mod.
 	Third, go to the "System" folder of your Deus Ex install directory (most likely C:\DeusEx\System, but may be elsewhere; if you have the Steam version it's probably in "C:\Program Files\Steam\steamapps\common\deusex\System"). Back up the files "DeusEx.u" and "DeusEx.int" (that's ".int", not ".ini"), and replace them with the ones in this package. I recommend backing up the originals in case you want to play original Deus Ex, which would require swapping the files back in and replacing those of this package.
 
