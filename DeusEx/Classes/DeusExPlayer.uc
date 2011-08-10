@@ -7370,6 +7370,358 @@ exec function RipAndTear()
 }
 
 // ----------------------------------------------------------------------
+// ABomb()
+//
+// Oh my God, JC! A bomb!
+// ----------------------------------------------------------------------
+
+exec function ABomb()
+{
+	local DeusExDecoration target;
+	local DeusExDecoration foundDeco;
+	local float radius;
+	local Trigger bombTrigger;
+	
+	if (!bCheatsEnabled)
+	return;
+		
+	for (radius=128;(radius<4096) && (target == None);radius*=2)
+	{
+		foreach RadiusActors(class'DeusExDecoration', foundDeco, radius)
+		{
+			if ((FRand() < 0.50) && (foundDeco != None))
+			{
+				if ((!foundDeco.bStatic) && (foundDeco.tag != 'abomb'))
+				{
+					target = foundDeco;
+					break;
+				}
+			}
+		}
+	}
+	if (target != None)
+	{
+		target.bInvincible = False;
+		target.bStasis = False;
+		target.bExplosive = True;
+		target.bFlammable = True;
+		target.explosionDamage *= 1.25;
+		target.explosionRadius *= 1.25;
+		target.HitPoints = 1;
+		target.Tag = 'abomb';
+		bombTrigger = spawn(Class'Trigger', None,, target.Location);
+		if (bombTrigger != None)
+		{
+			bombTrigger.TriggerType = TT_PawnProximity;
+			bombTrigger.SetCollisionSize(4.00 * bombTrigger.CollisionRadius + 2.00 * target.CollisionRadius,
+				4.00 * bombTrigger.CollisionHeight + 2.00 * target.CollisionHeight);
+			bombTrigger.Event = 'abomb';
+			bombTrigger.ReTriggerDelay = 10;
+			bombTrigger.TriggerTime = Level.TimeSeconds - 0.10;
+		}
+		target.PlaySound(Sound'DeusExSounds.Generic.Spark2', SLOT_None,,, 1024);
+	}
+}
+
+// ----------------------------------------------------------------------
+// ISpillMyDrink()
+// ----------------------------------------------------------------------
+
+exec function ISpillMyDrink()
+{
+	ISpeelMyDreenk();
+}
+
+// ----------------------------------------------------------------------
+// ISpeelMyDreenk()
+//
+// I SPEEL my DREENK!
+// ----------------------------------------------------------------------
+
+exec function ISpeelMyDreenk()
+{
+	local DeusExPickup foundBooze;
+	local SphereEffect spookyMagic;
+	
+	if (!bCheatsEnabled)
+		return;
+	
+	foreach RadiusActors(class'DeusExPickup', foundBooze, 1024)
+	{
+		if (foundBooze.IsA('LiquorBottle') || foundBooze.IsA('Liquor40oz') || foundBooze.IsA('WineBottle')
+			|| foundBooze.IsA('SodaCan'))
+		{
+			if (FRand() < 0.50)
+			{
+				foundBooze.SetPhysics(PHYS_Falling);
+				foundBooze.Velocity.X += Rand(1536) - 768;
+				foundBooze.Velocity.Y += Rand(1536) - 768;
+				foundBooze.Velocity.Z += Rand(1024) + 256;
+				spookyMagic = spawn(Class'SphereEffect', None,, foundBooze.Location);
+				if (spookyMagic != None)
+					spookyMagic.Size = 1.00;
+				foundBooze.PlaySound(foundBooze.LandSound, SLOT_None, TransientSoundVolume / 2,, 768);
+				AISendEvent('LoudNoise', EAITYPE_Audio, TransientSoundVolume, 768);
+			}
+		}
+	}
+		
+
+}
+
+// ----------------------------------------------------------------------
+// MyVisionIsAugmented()
+//
+// My vision is augmented.
+// ----------------------------------------------------------------------
+
+exec function MyVisionIsAugmented()
+{
+	if (!bCheatsEnabled)
+		return;
+	
+	if (!flagbase.GetBool('SunglassesAtNight'))
+	{
+		ConsoleCommand("rmode 6");
+		flagbase.SetBool('SunglassesAtNight', True);
+	}
+	else
+	{
+		ConsoleCommand("rmode 5");
+		flagbase.SetBool('SunglassesAtNight', False);
+	}
+}
+
+// ----------------------------------------------------------------------
+// WhatAShame()
+//
+// What a shame.
+// ----------------------------------------------------------------------
+
+exec function WhatAShame()
+{
+	//G-Flex: some taken from Tantalus()
+	local Actor hitActor;
+	local Vector hitLocation, hitNormal;
+	local Vector position, line;
+	local ScriptedPawn hitPawn;
+	local DeusExCarcass carc;
+	local Inventory item, nextItem;
+	
+	if (!bCheatsEnabled)
+		return;
+
+	position    = Location;
+	position.Z += BaseEyeHeight;
+	line        = Vector(ViewRotation) * 4000;
+
+	hitActor = Trace(hitLocation, hitNormal, position+line, position, true);
+	if (hitActor != None)
+	{
+		if (hitActor.IsA('ScriptedPawn') && !hitActor.IsA('Robot') && (hitActor.Style != STY_Translucent))
+		{
+			hitPawn = ScriptedPawn(hitActor);
+			carc = DeusExCarcass(hitPawn.SpawnCarcass());
+			if (carc != None)
+			{
+				hitPawn.PlayDyingSound();
+				hitPawn.SetCollision(False,False,False);
+				hitPawn.GoToState('FallingState');
+				hitPawn.SetPhysics(PHYS_Falling);
+				hitPawn.Velocity.Z += (FRand() * 66) + 5;
+				hitPawn.IncreaseFear(self,5.00);
+				carc.bNotDead = False;
+				carc.SetLocation(hitPawn.Location + (vect(0,0,1) * hitPawn.BaseEyeHeight * 0.5));
+				hitPawn.Style = STY_Translucent;
+				hitPawn.SetSkinStyle(STY_Translucent);
+				hitPawn.KillShadow();
+				hitPawn.bInvincible = True;
+				if (hitPawn.Inventory != None)
+				{
+					do
+					{
+						item = hitPawn.Inventory;
+						nextItem = item.Inventory;
+						hitPawn.DeleteInventory(item);
+						item.Destroy();
+						item = nextItem;
+					} until (item == None);
+				}
+			}
+		}
+	}
+}
+
+// ----------------------------------------------------------------------
+// WhatARottenWayToDie()
+//
+// What a rotten way to die.
+// ----------------------------------------------------------------------
+
+exec function WhatARottenWayToDie()
+{
+	//G-Flex: some taken from Tantalus()
+	local Actor hitActor;
+	local Vector hitLocation, hitNormal;
+	local Vector position, line;
+	local ScriptedPawn hitPawn;
+	local float chance;
+	local int i;
+	local vector loc;
+	local HalonGas gas;
+	local CrateExplosiveSmall surprise;
+	
+	if (!bCheatsEnabled)
+		return;
+
+	position    = Location;
+	position.Z += BaseEyeHeight;
+	line        = Vector(ViewRotation) * 4000;
+
+	hitActor = Trace(hitLocation, hitNormal, position+line, position, true);
+	if (ScriptedPawn(hitActor) != None)
+	{
+		hitPawn = ScriptedPawn(hitActor);
+		hitPawn.bInvincible = False;
+		chance = FRand();
+		if (chance < 0.15)
+		{
+			hitPawn.BurnPeriod = 600;
+			hitPawn.CatchFire();
+		}
+		else if (chance < 0.30)
+		{
+			hitActor.TakeDamage(15000, self, hitLocation, line, 'Tantalus');
+		}
+		else if (chance < 0.45)
+		{
+			hitActor.TakeDamage(15000, self, hitLocation, line, 'Exploded');
+		}
+		else if (chance < 0.60)
+		{
+			SpawnMass('Shuriken', 5);
+			SpawnMass('DartPoison', 5);
+			SpawnMass('Shuriken', 5);
+			SpawnMass('Dart', 5);
+		}
+		else if (chance < 0.75)
+		{
+			//G-Flex: mostly taken from ThrownProjectile
+			for (i=0; i<12; i++)
+			{
+				if (FRand() < 0.9)
+				{
+					loc = hitPawn.Location;
+					loc.X += FRand() * 256 - 128;
+					loc.Y += FRand() * 256 - 128;
+					loc.Z += 32;
+					gas = spawn(class'HalonGas', None,, loc);
+					if (gas != None)
+					{
+						gas.Damage = 2;
+						gas.Velocity = vect(0,0,0);
+						gas.Acceleration = vect(0,0,0);
+						gas.DrawScale = FRand() * 0.5 + 2.0;
+						gas.LifeSpan = FRand() * 10 + 30;
+						if ( Level.NetMode != NM_Standalone )
+							gas.bFloating = False;
+						else
+							gas.bFloating = True;
+						gas.Instigator = self;
+					}
+				}
+			}
+		}
+		else if ((chance < 0.90) && !hitPawn.Region.Zone.bWaterZone)
+		{
+			surprise = spawn(Class'CrateExplosiveSmall', None,, hitPawn.location + vect(0,0,1) * (hitPawn.CollisionHeight + 64));
+			if (surprise != None)
+			{
+				surprise.Velocity.X += (FRand() * 500) - 250;
+				surprise.Velocity.Y += (FRand() * 500) - 250;
+				surprise.Velocity.Z += (FRand() * 500) - 250;
+			}
+		}
+		else
+		{
+			hitPawn.GoToState('FallingState');
+			hitPawn.SetPhysics(PHYS_Falling);
+			hitPawn.Velocity.Z += (FRand() + 1) * 768;
+			hitPawn.Velocity.X += Rand(512) - 256;
+			hitPawn.Velocity.Y += Rand(512) - 256;
+		}
+	}
+}
+
+// ----------------------------------------------------------------------
+// GoCatGo()
+//
+// Go, cat, go! Loosen up! Get down!
+// ----------------------------------------------------------------------
+
+exec function GoCatGo()
+{
+	local ScriptedPawn guy;
+
+	if (!bCheatsEnabled)
+	return;
+
+	//G-Flex: taken from Summon()
+	guy = Spawn(Class'Businessman1',,,Location + (CollisionRadius+Class'Businessman2'.Default.CollisionRadius+30) * Vector(Rotation) + vect(0,0,1) * 15 );
+	if (guy != None)
+	{
+		guy.BarkBindName="Man";
+		guy.BindName="Arthur";
+		guy.UnfamiliarName="Arthur";
+		guy.FamiliarName="Arthur";
+		guy.LightType=LT_Steady;
+		guy.LightEffect=LE_Disco;
+		guy.LightBrightness=128;
+		guy.LightHue=135;
+		guy.LightSaturation=0;
+		guy.LightRadius=64;
+		guy.LightPeriod=32;
+		guy.AmbientGlow = 128;
+		guy.AmbientSound=Sound'Ambient.Ambient.HumLow3';
+		guy.SoundRadius=64;
+		guy.SoundVolume=32;
+		foreach RadiusActors(class'ScriptedPawn', guy, 1024)
+		{
+			guy.ChangeAlly('Player', 1, True, False);
+			guy.SetOrders('Dancing',, True);
+			guy.bUseHome = False;
+			guy.bAvoidAim = False;
+			guy.bSeekCover = False;
+			guy.bAvoidHarm = False;
+			guy.bHateHacking = False;
+			guy.bHateWeapon = False;
+			guy.bHateShot = False;
+			guy.bHateInjury = False;
+			guy.bHateIndirectInjury = False;
+			guy.bHateCarcass = False;
+			guy.bHateDistress = False;
+			guy.bReactFutz = False;
+			guy.bReactPresence = False;
+			guy.bReactLoudNoise = False;
+			guy.bReactAlarm = False;
+			guy.bReactShot = False;
+			guy.bReactCarcass = False;
+			guy.bReactDistress = False;
+			guy.bReactProjectiles = False;
+			guy.bFearHacking = False;
+			guy.bFearWeapon = False;
+			guy.bFearShot = False;
+			guy.bFearInjury = False;
+			guy.bFearIndirectInjury = False;
+			guy.bFearCarcass = False;
+			guy.bFearDistress = False;
+			guy.bFearAlarm = False;
+			guy.bFearProjectiles = False;
+		}	
+	}
+}
+
+// ----------------------------------------------------------------------
 // OpenSesame()
 //
 // Opens any door immediately in front of you, locked or not

@@ -4648,7 +4648,13 @@ function PlayDancing()
 	if (Region.Zone.bWaterZone)
 		LoopAnimPivot('Tread', , 0.3, , GetSwimPivot());
 	else
-		LoopAnimPivot('Dance', FRand()*0.2+0.9, 0.3);
+	{
+		//G-Flex: use panic anim if they don't have the dance anim. Tee hee.
+		if (HasAnim('Dance'))
+			LoopAnimPivot('Dance', FRand()*0.2+0.9, 0.3);
+		else
+			LoopAnimPivot('Panic', FRand()*0.2+0.9, 0.3);
+	}
 }
 
 
