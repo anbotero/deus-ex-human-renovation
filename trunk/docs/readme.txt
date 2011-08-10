@@ -128,6 +128,7 @@
 │POINTLESS CHEATS│
 ╘────────────────╛
 + Added a new cheat command. Here's a hint: Think of the "Doom" comic, and things that are huge.
++ Also implemented some really stupid and mostly useless cheat codes based on the more popular quote-memes from the game. So far, they involve: The Renton situation, why JC can wear sunglasses at night, Russian sailors, explosive sabotage, and dancing businessmen in Paris. Those are your hints. Development note: To make one of those cheats work a little better, I added a check in ScriptedPawn to see if a dancing NPC actually has the dancing animation. Otherwise, the use the panic animation. Don't worry, this never affects the game except in bizarre scenarios like that, wherein it is hilarious.
 
 
 
