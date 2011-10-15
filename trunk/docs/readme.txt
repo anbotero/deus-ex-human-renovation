@@ -2,7 +2,7 @@
 
                Deus Ex: HUMAN RENOVATION
 
-                         v1.1
+                         v1.2
 
    http://code.google.com/p/deus-ex-human-renovation
 ╘═════════════════════════════════════════════════════╛
