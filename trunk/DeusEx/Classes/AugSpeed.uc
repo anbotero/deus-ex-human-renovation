@@ -12,7 +12,7 @@ Begin:
 	Player.GroundSpeed *= LevelValues[CurrentLevel];
 
 	//G-Flex: This is an awful hack.
-	Player.JumpZ = Player.Default.JumpZ * (0.4 * Player.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.4 + LevelValues[CurrentLevel]);
+	Player.JumpZ = Player.Default.JumpZ * (0.20 * Player.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.20 + LevelValues[CurrentLevel]);
 
 	if ( Level.NetMode != NM_Standalone )
 	{
@@ -31,7 +31,7 @@ function Deactivate()
 		Player.GroundSpeed = Player.Default.GroundSpeed;
 
 	//G-Flex: This is an awful hack.
-	Player.JumpZ = Player.Default.JumpZ * (1 + (0.4 * (Player.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 1)));
+	Player.JumpZ = Player.Default.JumpZ * (1 + (0.20 * (Player.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 1)));
 
 	if ( Level.NetMode != NM_Standalone )
 	{
@@ -63,10 +63,11 @@ defaultproperties
      AugmentationName="Speed Enhancement"
      Description="Ionic polymeric gel myofibrils are woven into the leg muscles, increasing the speed at which an agent can run and climb, the height they can jump, and reducing the damage they receive from falls.|n|nTECH ONE: Speed and jumping are increased slightly, while falling damage is reduced.|n|nTECH TWO: Speed and jumping are increased moderately, while falling damage is further reduced.|n|nTECH THREE: Speed and jumping are increased significantly, while falling damage is substantially reduced.|n|nTECH FOUR: An agent can run like the wind and leap from the tallest building."
      MPInfo="When active, you move twice as fast and jump twice as high.  Energy Drain: Very High"
-     LevelValues(0)=1.200000
-     LevelValues(1)=1.400000
-     LevelValues(2)=1.600000
-     LevelValues(3)=1.800000
+	 //G-Flex: slightly nerf effect to account for Athletics skill
+     LevelValues(0)=1.200000 //1.2
+     LevelValues(1)=1.350000 //1.4
+     LevelValues(2)=1.525000 //1.6
+     LevelValues(3)=1.700000 //1.8
      AugmentationLocation=LOC_Leg
      MPConflictSlot=5
 }

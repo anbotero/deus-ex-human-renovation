@@ -3,6 +3,26 @@
 //=============================================================================
 class SignFloor extends DeusExDecoration;
 
+function bool Facelift(bool bOn)
+{
+	local Texture lSkin;
+
+	if(!Super.Facelift(bOn))
+		return false;
+
+	Skin = None;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPDecos.HDTPSignfloor", class'mesh', True));
+
+	if(Mesh == None || !bOn)
+	{
+		Mesh = Default.Mesh;
+	}
+
+	return true;
+}
+
 defaultproperties
 {
      FragType=Class'DeusEx.PlasticFragment'

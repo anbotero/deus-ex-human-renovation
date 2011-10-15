@@ -1,12 +1,98 @@
 //=============================================================================
 // WeaponBaton.
 //=============================================================================
+
+
+
 class WeaponBaton extends DeusExWeapon;
+
+function bool Facelift(bool bOn)
+{
+	local Name tName;
+
+	if(!Super.Facelift(bOn))
+		return false;
+
+	tName = GetStateName();
+
+	if(bOn)
+		PlayerViewMesh = mesh(DynamicLoadObject("HDTPItems.HDTPWeaponBaton", class'mesh', True));
+
+	if(PlayerViewMesh == None || !bOn)
+		PlayerViewMesh = Default.PlayerViewMesh;
+
+	if(tName != 'Pickup')
+		Mesh = PlayerViewMesh;
+
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function name WeaponDamageType()
 {
 	return 'KnockedOut';
 }
+
+
+
+
+
+
+
 
 defaultproperties
 {
@@ -18,6 +104,8 @@ defaultproperties
      maxRange=80
      AccurateRange=80
      BaseAccuracy=1.000000
+
+
      bPenetrating=False
      bHasMuzzleFlash=False
      bHandToHand=True
@@ -27,6 +115,7 @@ defaultproperties
      ReloadCount=0
      bInstantHit=True
      FireOffset=(X=-24.000000,Y=14.000000,Z=17.000000)
+
      shakemag=20.000000
      FireSound=Sound'DeusExSounds.Weapons.BatonFire'
      SelectSound=Sound'DeusExSounds.Weapons.BatonSelect'

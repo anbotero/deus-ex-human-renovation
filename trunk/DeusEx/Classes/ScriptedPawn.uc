@@ -335,6 +335,7 @@ var       bool      bStaring;
 var       bool      bAttacking;
 var       bool      bDistressed;
 var       bool      bStunned;
+
 var       bool      bSitting;
 var       bool      bDancing;
 var       bool      bCrouching;
@@ -458,8 +459,23 @@ function PreBeginPlay()
 
 	// Set up callbacks
 	UpdateReactionCallbacks();
+	
+	if(Level.NetMode == NM_StandAlone)
+		Facelift(true);
 }
 
+function bool Facelift(bool bOn)
+{
+	//== Only do this for DeusEx classes
+	if(instr(String(Class.Name), ".") > -1 && bOn)
+		if(instr(String(Class.Name), "DeusEx.") <= -1)
+			return false;
+	else
+		if((Class != Class(DynamicLoadObject("DeusEx."$ String(Class.Name), class'Class', True))) && bOn)
+			return false;
+
+	return true;
+}
 
 // ----------------------------------------------------------------------
 // PostBeginPlay()
@@ -516,7 +532,6 @@ simulated function Destroyed()
 
 	if ((player != None) && (player.conPlay != None))
 		player.conPlay.ActorDestroyed(Self);
-
 	Super.Destroyed();
 }
 
@@ -554,6 +569,7 @@ function InitializePawn()
 		PlayTurnHead(LOOK_Forward, 1.0, 0.0001);
 
 		bInitialized = true;
+
 	}
 }
 
@@ -588,7 +604,9 @@ function InitializeInventory()
 				}
 				if (inv == None)
 				{
+
 					inv = spawn(InitialInventory[i].Inventory, self);
+
 					if (inv != None)
 					{
 						inv.InitialState='Idle2';
@@ -637,7 +655,6 @@ function InitializeAlliances()
 			ChangeAlly(InitialAlliances[i].AllianceName,
 			           InitialAlliances[i].AllianceLevel,
 			           InitialAlliances[i].bPermanent);
-
 }
 
 
@@ -715,6 +732,7 @@ function bool SetEnemy(Pawn newEnemy, optional float newSeenTime,
 			EnemyLastSeenAt = newEnemy.Location;
 		else
 			EnemyLastSeenAt = vect(0, 0, 0);
+
 		return True;
 	}
 	else
@@ -1490,6 +1508,10 @@ function HandleEnemy()
 
 function HandleSighting(Pawn pawnSighted)
 {
+
+
+
+
 	SetSeekLocation(pawnSighted, pawnSighted.Location, SEEKTYPE_Sight);
 	GotoState('Seeking');
 }
@@ -1608,6 +1630,7 @@ function GenerateTotalHealth()
 	else
 	{
 		// Pawn is invincible - reset health to defaults
+
 		HealthHead     = Default.HealthHead;
 		HealthTorso    = Default.HealthTorso;
 		HealthArmLeft  = Default.HealthArmLeft;
@@ -2814,6 +2837,7 @@ function Carcass SpawnCarcass()
 		// give the carcass the pawn's inventory if we aren't an animal or robot
 		if (!IsA('Animal') && !IsA('Robot'))
 		{
+
 			if (Inventory != None)
 			{
 				do
@@ -2834,7 +2858,6 @@ function Carcass SpawnCarcass()
 
 	return carc;
 }
-
 
 // ----------------------------------------------------------------------
 // FilterDamageType()
@@ -2983,6 +3006,7 @@ function bool IsPrimaryDamageType(name damageType)
 		case 'Flamed':
 		case 'Poison':
 		case 'Shot':
+
 		case 'Sabot':
 		default:
 			bPrimary = true;
@@ -3163,6 +3187,7 @@ function TakeDamageBase(int Damage, Pawn instigatedBy, Vector hitlocation, Vecto
 	//G-Flex: keep track of burning death
 	local bool         bWasOnFire;
 
+
 	// use the hitlocation to determine where the pawn is hit
 	// transform the worldspace hitlocation into objectspace
 	// in objectspace, remember X is front to back
@@ -3225,6 +3250,8 @@ function TakeDamageBase(int Damage, Pawn instigatedBy, Vector hitlocation, Vecto
 	if (Health <= 0)
 	{
 		bWasOnFire = bOnFire;
+
+
 		ClearNextState();
 		//PlayDeathHit(actualDamage, hitLocation, damageType);
 		if ( actualDamage > mass )
@@ -3326,6 +3353,7 @@ function CheckOpenDoor(vector HitNormal, actor Door, optional name Label)
 	dxMover = DeusExMover(Door);
 	if (dxMover != None)
 	{
+
 		if (bCanOpenDoors && !IsDoor(dxMover) && dxMover.bBreakable)  // break glass we walk into
 		{
 			dxMover.TakeDamage(200, self, dxMover.Location, Velocity, 'Shot');
@@ -3630,6 +3658,9 @@ function EnableCloak(bool bEnable)  // beware! called from C++
 
 function PlayBodyThud()
 {
+
+
+
 	PlaySound(sound'BodyThud', SLOT_Interact);
 }
 
@@ -3643,6 +3674,8 @@ function PlayBodyThud()
 
 function float RandomPitch()
 {
+
+
 	return (1.1 - 0.2*FRand());
 }
 
@@ -3720,7 +3753,11 @@ function PlayPreAttackSearchingSound()
 
 	dxPlayer = DeusExPlayer(GetPlayerPawn());
 	if ((dxPlayer != None) && (SeekPawn == dxPlayer))
+
 		dxPlayer.StartAIBarkConversation(self, BM_PreAttackSearching);
+
+
+
 }
 
 
@@ -3734,8 +3771,12 @@ function PlayPreAttackSightingSound()
 
 	dxPlayer = DeusExPlayer(GetPlayerPawn());
 	if ((dxPlayer != None) && (SeekPawn == dxPlayer))
+
 		dxPlayer.StartAIBarkConversation(self, BM_PreAttackSighting);
+
+
 }
+
 
 
 // ----------------------------------------------------------------------
@@ -3761,8 +3802,16 @@ function PlayTargetAcquiredSound()
 	local DeusExPlayer dxPlayer;
 
 	dxPlayer = DeusExPlayer(GetPlayerPawn());
+
 	if ((dxPlayer != None) && (Enemy == dxPlayer))
+
 		dxPlayer.StartAIBarkConversation(self, BM_TargetAcquired);
+
+
+
+
+
+
 }
 
 
@@ -3777,6 +3826,9 @@ function PlayTargetLostSound()
 	dxPlayer = DeusExPlayer(GetPlayerPawn());
 	if ((dxPlayer != None) && (SeekPawn == dxPlayer))
 		dxPlayer.StartAIBarkConversation(self, BM_TargetLost);
+
+
+
 }
 
 
@@ -3950,8 +4002,12 @@ function PlayAllianceHostileSound()
 
 	dxPlayer = DeusExPlayer(GetPlayerPawn());
 	if ((dxPlayer != None) && (Enemy == dxPlayer))
+
 		dxPlayer.StartAIBarkConversation(self, BM_AllianceHostile);
+
+
 }
+
 
 
 // ----------------------------------------------------------------------
@@ -4190,6 +4246,8 @@ function PlayFootStep()
 	range       = FClamp(range, 0.01, maxRadius);
 	pitch       = FClamp(pitch, 1.0, 1.5);
 
+
+
 	// play the sound and send an AI event
 	PlaySound(stepSound, SLOT_Interact, volume, , range, pitch);
 	AISendEvent('LoudNoise', EAITYPE_Audio, volume*volumeMultiplier, range*volumeMultiplier);
@@ -4332,6 +4390,32 @@ function PlayRunningAndFiring()
 		}
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // ----------------------------------------------------------------------
@@ -5960,7 +6044,6 @@ function bool ShouldPlayTurn(vector lookdir)
 		return false;
 }
 
-
 // ----------------------------------------------------------------------
 // ShouldPlayWalk()
 // ----------------------------------------------------------------------
@@ -6048,7 +6131,6 @@ function ChangeAlly(Name newAlly, optional float allyLevel, optional bool bPerma
 	bNoNegativeAlliances = False;
 }
 
-
 // ----------------------------------------------------------------------
 // AgitateAlliance()
 // ----------------------------------------------------------------------
@@ -6084,6 +6166,8 @@ function AgitateAlliance(Name newEnemy, float agitation)
 		}
 	}
 }
+
+
 
 
 // ----------------------------------------------------------------------
@@ -6353,6 +6437,7 @@ function bool AICanShoot(pawn target, bool bLeadTarget, bool bCheckReadiness,
 	local float  elevation;
 	local bool   bSafe;
 
+
 	if (target == None)
 		return false;
 	if (target.bIgnore)
@@ -6371,6 +6456,7 @@ function bool AICanShoot(pawn target, bool bLeadTarget, bool bCheckReadiness,
 		if (dxWeapon.AmmoType.AmmoAmount <= 0)
 			return false;
 	}
+
 	if (FireElevation > 0)
 	{
 		elevation = FireElevation + (CollisionHeight+target.CollisionHeight);
@@ -6617,6 +6703,7 @@ function CheckEnemyParams(Pawn checkPawn,
 	local bool         bValid;
 
 	bValid = IsValidEnemy(checkPawn);
+
 	if (bValid && (Enemy != checkPawn))
 	{
 		// Honor cloaking, radar transparency, and other augs if this guy isn't our current enemy
@@ -7255,7 +7342,7 @@ function Tick(float deltaTime)
 	local bool         bCheckPlayer;
 
 	player = DeusExPlayer(GetPlayerPawn());
-
+	
 	bDoLowPriority = true;
 	bCheckPlayer   = true;
 	bCheckOther    = true;
@@ -7512,7 +7599,6 @@ function Timer()
 {
 	UpdateFire();
 }
-
 
 // ----------------------------------------------------------------------
 // ZoneChange()
@@ -7787,6 +7873,7 @@ function bool SwitchToBestWeapon()
 		{
 			log("********** RUNAWAY LOOP IN SWITCHTOBESTWEAPON ("$self$") **********");
 			loopInv = Inventory;
+
 			i = 0;
 			while (loopInv != None)
 			{
@@ -7794,8 +7881,10 @@ function bool SwitchToBestWeapon()
 				if (i > 300)
 					break;
 				log("   Inventory "$i$" - "$loopInv);
+
 				loopInv = loopInv.Inventory;
 			}
+
 		}
 
 		curWeapon = DeusExWeapon(inv);
@@ -7913,6 +8002,7 @@ function bool SwitchToBestWeapon()
 					case 'Burned':
 					case 'Flamed':
 					case 'Shot':
+
 						if (enemyRobot != None)
 							score += 0.5;
 						break;
@@ -8633,8 +8723,6 @@ function Died(pawn Killer, name damageType, vector HitLocation)
 		}
 	}
 }
-
-
 
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
@@ -10541,9 +10629,15 @@ Begin:
 	WaitForLanding();
 	PlayWaiting();
 	if ((Weapon != None) && bKeepWeaponDrawn && (Weapon.CockingSound != None) && !bSeekPostCombat)
+
+
+
+
 		PlaySound(Weapon.CockingSound, SLOT_None,,, 1024);
+
 	Acceleration = vect(0,0,0);
 	if (!PickDestination())
+
 		Goto('DoneSeek');
 
 GoToLocation:
@@ -10670,6 +10764,7 @@ LookAround:
 FindAnotherPlace:
 	SeekLevel--;
 	if (PickDestination())
+
 		Goto('GoToLocation');
 
 DoneSeek:
@@ -10789,6 +10884,7 @@ State Fleeing
 	function Tick(float deltaSeconds)
 	{
 		UpdateActorVisibility(Enemy, deltaSeconds, 1.0, false);
+
 		if (IsValidEnemy(Enemy))
 		{
 			if (EnemyLastSeen > FearSustainTime)
@@ -10798,6 +10894,7 @@ State Fleeing
 			FinishFleeing();
 		else if (!IsFearful())
 			FinishFleeing();
+
 		Global.Tick(deltaSeconds);
 	}
 
@@ -10817,6 +10914,7 @@ State Fleeing
 	function PickDestination()
 	{
 		local HidePoint      hidePoint;
+
 		local Actor          waypoint;
 		local float          dist;
 		local float          score;
@@ -11239,6 +11337,7 @@ State Attacking
 	function EDestinationType PickDestination()
 	{
 		//G-Flex: Implementing Shifter's cloak change. Hope this works.
+
 		local vector               distVect;
 		local vector               tempVect;
 		local rotator              enemyDir;
@@ -11247,6 +11346,7 @@ State Attacking
 		local int                  iterations;
 		local EDestinationType     destType;
 		local NearbyProjectileList projList;
+
 		local float		   actorVis;
 
 		destPoint = None;
@@ -11468,6 +11568,7 @@ State Attacking
 					FireIfClearShot();
 			}
 		}
+
 		//UpdateReactionLevel(true, deltaSeconds);
 	}
 
@@ -11682,6 +11783,8 @@ ContinueFire:
 		CheckAttack(true);
 		if (!IsWeaponReloading() || bCrouching)
 			TurnToward(enemy);
+
+
 		else
 			Sleep(0);
 	}
@@ -11713,6 +11816,8 @@ ContinueFire:
 	{
 		if (!IsWeaponReloading() || bCrouching)
 			TurnToward(enemy);
+
+
 		else
 			Sleep(0);
 		Goto('ContinueFire');
@@ -11961,6 +12066,7 @@ Alert:
 
 	WaitForLanding();
 	if (!PickDestination())
+
 		Goto('Done');
 
 Moving:
@@ -12226,6 +12332,7 @@ Moving:
 
 	// Can we go somewhere?
 	if (PickDestination())
+
 	{
 		// Are we going to a navigation point?
 		if (destPoint != None)
@@ -12453,6 +12560,7 @@ Begin:
 		GotoState('Standing');
 
 	if (!PickDestination())
+
 		Goto('Wait');
 
 Follow:
@@ -12476,6 +12584,7 @@ Follow:
 		CheckDestLoc(destLoc);
 	}
 	if (PickDestination())
+
 		Goto('Follow');
 
 Wait:
@@ -12487,6 +12596,7 @@ WaitLoop:
 	Acceleration=vect(0,0,0);
 	Sleep(0.0);
 	if (!PickDestination())
+
 		Goto('WaitLoop');
 	else
 		Goto('Follow');
@@ -12495,6 +12605,7 @@ ContinueFollow:
 ContinueFromDoor:
 	Acceleration=vect(0,0,0);
 	if (PickDestination())
+
 		Goto('Follow');
 	else
 		Goto('Wait');
@@ -13256,12 +13367,14 @@ Begin:
 	Acceleration = vect(0,0,0);
 	PickDestination(true);
 
+
 RunAway:
 	PlayTurnHead(LOOK_Forward, 1.0, 0.0001);
 	if (ShouldPlayWalk(destLoc))
 		PlayRunning();
 	MoveTo(destLoc, MaxDesiredSpeed);
 	PickDestination(true);
+
 
 Watch:
 	Acceleration = vect(0,0,0);
@@ -13274,6 +13387,7 @@ Watch:
 		sleepTime -= 0.5;
 		Sleep(0.5);
 		PickDestination(false);
+
 	}
 
 Done:
@@ -13285,6 +13399,7 @@ Done:
 ContinueRun:
 ContinueFromDoor:
 	PickDestination(false);
+
 	Goto('Done');
 
 }
@@ -13474,6 +13589,7 @@ state BackingOff
 Begin:
 	useRot = Rotation;
 	if (!PickDestination())
+
 		Goto('Pause');
 	Acceleration = vect(0,0,0);
 
@@ -13990,6 +14106,7 @@ Begin:
 
 	Acceleration = vect(0,0,0);
 	SpawnCarcass();
+
 	Destroy();
 }
 
@@ -14084,6 +14201,7 @@ state FallingState
 			if ( !FootRegion.Zone.bWaterZone )
 				PlaySound(Land, SLOT_Interact, FMin(20, landVol));
 		}
+
 		else if ( Velocity.Z < -0.8 * JumpZ )
 			PlayLanded(Velocity.Z);
 	}
@@ -14249,7 +14367,6 @@ function JumpOffPawn()
 	*/
 	//log("ERROR - JumpOffPawn should not be called!");
 }
-
 
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------

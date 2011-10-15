@@ -9,6 +9,12 @@ var float mpEnergyDrain;
 var float reconstructTime;
 var float lastDroneTime;
 
+//G-Flex: for initial fixed energy cost
+var float constructCost;
+
+var float lastTickTime;
+
+
 state Active
 {
 Begin:
@@ -17,12 +23,45 @@ Begin:
 		Player.ClientMessage("Reconstruction will be complete in" @ Int(reconstructTime - (Level.TimeSeconds - lastDroneTime)) @ "seconds");
 		Deactivate();
 	}
-	else
+	else if ((Level.NetMode != NM_StandAlone) || (Player.Energy > constructCost))
 	{
+		//G-Flex: we can afford construction cost, or are in MP
 		Player.bSpyDroneActive = True;
 		Player.spyDroneLevel = CurrentLevel;
 		Player.spyDroneLevelValue = LevelValues[CurrentLevel];
+		if (Level.NetMode == NM_StandAlone)
+		{
+			//G-Flex: pay construction cost in SP
+			Player.Energy -= constructCost;
+		}			
 	}
+	else
+	{
+		//G-Flex: not in MP, and can't afford construction cost
+		Player.ClientMessage("Not enough energy to construct drone");
+		Deactivate();
+	}
+
+
+
+
+
+
+
+
+
+
+}
+
+function Tick(float deltaTime)
+{
+	if(DeusExGameInfo(Level.Game) != None)
+		if(lastTickTime <= DeusExGameInfo(Level.Game).PauseStartTime) //== Pause time offset
+			lastDroneTime += (DeusExGameInfo(Level.Game).PauseEndTime - DeusExGameInfo(Level.Game).PauseStartTime);
+
+	Super.Tick(deltaTime);
+
+	lastTickTime = Level.TimeSeconds;
 }
 
 function Deactivate()
@@ -53,8 +92,10 @@ defaultproperties
      mpAugValue=100.000000
      mpEnergyDrain=20.000000
      reconstructTime=30.000000
+	 constructCost=30.000000
      lastDroneTime=-30.000000
-     EnergyRate=150.000000
+	 //G-Flex: EnergyRate = 150.000000
+     EnergyRate=30.000000
      Icon=Texture'DeusExUI.UserInterface.AugIconDrone'
      smallIcon=Texture'DeusExUI.UserInterface.AugIconDrone_Small'
      AugmentationName="Spy Drone"
@@ -64,5 +105,6 @@ defaultproperties
      LevelValues(1)=20.000000
      LevelValues(2)=35.000000
      LevelValues(3)=50.000000
+
      MPConflictSlot=7
 }

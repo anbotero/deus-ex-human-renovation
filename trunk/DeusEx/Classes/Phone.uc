@@ -26,9 +26,106 @@ var() float ringFreq;
 var float ringTimer;
 var bool bUsing;
 
+function bool Facelift(bool bOn)
+{
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPDecos.HDTPphone", class'mesh', True));
+
+	if(Mesh == None || !bOn)
+		Mesh = Default.Mesh;
+
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function Tick(float deltaTime)
 {
 	Super.Tick(deltaTime);
+
+
+
+
 
 	//== Y|y: If the phone is in use or a non-ringing phone don't make any noise
 	if(bUsing || ringFreq <= 0.0)
@@ -53,12 +150,17 @@ function Tick(float deltaTime)
 
 function Timer()
 {
+
+
+
 	bUsing = False;
 }
+
 
 function Frob(actor Frobber, Inventory frobWith)
 {
 	local float rnd;
+
 
 	Super.Frob(Frobber, frobWith);
 
@@ -66,6 +168,26 @@ function Frob(actor Frobber, Inventory frobWith)
 		return;
 
 	bUsing = True;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	//== Sounds play for about 3 seconds
 	SetTimer(3.0, False);

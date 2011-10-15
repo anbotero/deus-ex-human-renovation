@@ -3,6 +3,33 @@
 //=============================================================================
 class WineBottle extends DeusExPickup;
 
+function bool Facelift(bool bOn)
+{
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPItems.HDTPWineBottle", class'mesh', TRue));
+
+	if(Mesh == None || !bOn)
+	{
+		Texture = None;
+		PickupViewMesh = Default.PickupViewMesh;
+		PlayerViewMesh = Default.PlayerViewMesh;
+		ThirdPersonMesh = Default.ThirdPersonMesh;
+		Mesh = Default.Mesh;
+	}
+	else
+	{
+		Texture = Texture(DynamicLoadObject("HDTPItems.Skins.HDTPWineBottletex2", class'Texture'));
+		PickupViewMesh = Mesh;
+		PlayerViewMesh = Mesh;
+		ThirdPersonMesh = Mesh;
+	}
+
+	return true;
+}
+
 state Activated
 {
 	function Activate()

@@ -56,12 +56,20 @@ event Tick(float deltaSeconds)
 
 function ActivateView(int newFOV, bool bNewBinocs, bool bInstant)
 {
+	local float desiredVFOV;
+	
 	desiredFOV = newFOV;
 
 	bBinocs = bNewBinocs;
 
 	if (player != None)
 	{
+		//G-Flex: we want to correct for aspect ratio here
+		//G-Flex: first, get the vFoV we'd have at 4:3
+		desiredVFOV = (2 * atan(tan((newFOV * 0.0174533)/2.00) * (3.00/4.00)));
+		//G-Flex: then, get the matching hFoV at current res, in degrees
+		desiredFOV = 57.2957795 * (2 * atan(tan(desiredVFOV/2.00) * (player.rootWindow.width/player.rootWindow.height)));
+		
 		if (bInstant)
 			player.SetFOVAngle(desiredFOV);
 		else

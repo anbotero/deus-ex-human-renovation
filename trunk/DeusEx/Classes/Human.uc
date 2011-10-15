@@ -411,6 +411,7 @@ defaultproperties
      WaterSpeed=300.000000
      AirSpeed=4000.000000
      AccelRate=1000.000000
+	 JumpZ=300.000000
      BaseEyeHeight=40.000000
      UnderWaterTime=20.000000
      CollisionRadius=20.000000

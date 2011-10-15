@@ -49,6 +49,25 @@ replication
       bTracking, Target, bAggressiveExploded, bHasNetworkTarget, NetworkTargetLoc;
 }
 
+function PreBeginPlay()
+{
+	if(Level.NetMode == NM_Standalone)
+		Facelift(true);
+}
+
+function bool Facelift(bool bOn)
+{
+	//== Only do this for DeusEx classes
+	if(instr(String(Class.Name), ".") > -1 && bOn)
+		if(instr(String(Class.Name), "DeusEx.") <= -1)
+			return false;
+	else
+		if((Class != Class(DynamicLoadObject("DeusEx."$ String(Class.Name), class'Class', True))) && bOn)
+			return false;
+
+	return true;
+}
+
 function PostBeginPlay()
 {
 	Super.PostBeginPlay();

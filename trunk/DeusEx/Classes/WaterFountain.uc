@@ -1,11 +1,41 @@
 //=============================================================================
 // WaterFountain.
 //=============================================================================
+
+
+
 class WaterFountain extends DeusExDecoration;
 
 var bool bUsing;
 var int numUses;
 var localized String msgEmpty;
+
+function bool Facelift(bool bOn)
+{
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPDecos.HDTPWaterFountain", class'mesh', True));
+
+	if(Mesh == None || !bOn)
+		Mesh = Default.Mesh;
+
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function Timer()
 {
@@ -16,7 +46,11 @@ function Timer()
 
 function Frob(Actor Frobber, Inventory frobWith)
 {
+
+
 	Super.Frob(Frobber, frobWith);
+
+
 
 	if (numUses <= 0)
 	{
@@ -33,12 +67,19 @@ function Frob(Actor Frobber, Inventory frobWith)
 
 	// heal the frobber a small bit
 	if (DeusExPlayer(Frobber) != None)
+
+
+
+
 		DeusExPlayer(Frobber).HealPlayer(1);
+
 
 	LoopAnim('Use');
 	AmbientSound = sound'WaterBubbling';
 	numUses--;
 }
+
+
 
 defaultproperties
 {

@@ -3,6 +3,30 @@
 //=============================================================================
 class Candybar extends DeusExPickup;
 
+function bool Facelift(bool bOn)
+{
+	local Texture lSkin;
+
+	if(!Super.Facelift(bOn))
+		return false;
+
+	lSkin = Skin;
+
+	if(bOn && lSkin != Texture'CandybarTex2')
+		Skin = Texture(DynamicLoadObject("HDTPItems.Skins.HDTPCandybartex1", class'Texture', true));
+
+	if(Skin == None || !bOn)
+	{
+		if(lSkin == Texture'CandybarTex2')
+			Skin = lSkin;
+
+		else
+			Skin = None;
+	}
+
+	return true;
+}
+
 state Activated
 {
 	function Activate()

@@ -160,7 +160,7 @@ function bool IncLevel(optional DeusExPlayer usePlayer)
 					speedLevel = 1.0;
 				}
 
-				localPlayer.JumpZ = localPlayer.Default.JumpZ * (0.4 * localPlayer.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.4 + speedLevel);
+				localPlayer.JumpZ = localPlayer.Default.JumpZ * (0.20 * localPlayer.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.20 + speedLevel);
 				return True;
 			}
 		}
@@ -221,7 +221,7 @@ function bool DecLevel(
 				speedLevel = 1.0;
 			}
 
-		localPlayer.JumpZ = localPlayer.Default.JumpZ * (0.4 * localPlayer.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.4 + speedLevel);
+		localPlayer.JumpZ = localPlayer.Default.JumpZ * (0.20 * localPlayer.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.20 + speedLevel);
 
 		return True;
 	}

@@ -3,6 +3,63 @@
 //=============================================================================
 class Cigarettes extends DeusExPickup;
 
+enum ECigType
+{
+	SC_Default,
+	SC_BigTop
+};
+
+var ECigType Cig;
+
+function BeginPlay()
+{
+	Super.BeginPlay();
+
+	SetSkin();
+}
+
+function SetSkin()
+{
+	local Texture lSkin;
+	local string texstr;
+
+	switch (Cig)
+	{
+		case SC_Default:	 texstr = "HDTPitems.Skins.HDTPcigarettesTex1"; break;
+		case SC_BigTop:		 texstr = "HDTPitems.Skins.HDTPcigarettesTex2"; break;
+	}
+
+	lSkin = Texture(DynamicLoadObject(texstr,class'Texture', True));
+
+	if(lSkin != None)
+		Skin = lSkin;
+}
+
+function bool Facelift(bool bOn)
+{
+	local string texstr;
+
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+	{
+		switch (Cig)
+		{
+			case SC_Default:	 texstr = "HDTPitems.Skins.HDTPcigarettesTex1"; break;
+			case SC_BigTop:		 texstr = "HDTPitems.Skins.HDTPcigarettesTex2"; break;
+		}
+		Skin = Texture(DynamicLoadObject(texstr,class'Texture', True));
+	}
+
+	if(Skin == None || !bOn)
+		Skin = None;
+
+	return true;
+
+}
+
+
 state Activated
 {
 	function Activate()

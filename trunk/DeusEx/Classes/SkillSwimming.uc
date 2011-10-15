@@ -40,9 +40,10 @@ defaultproperties
      Description="Urban operations require agents to maintain peak physical condition in order to maneuver effectively, even underwater, and to prevent injury.|n|nUNTRAINED: An agent can run, jump, and swim normally.|n|nTRAINED: The speed, lung capacity, jumping height and ability of an agent to withstand falls increases slightly.|n|nADVANCED: The maneuverability and lung capacity of an agent increases moderately.|n|nMASTER: An agent moves like a dolphin underwater and a cat on land."
      SkillIcon=Texture'DeusExUI.UserInterface.SkillIconSwimming'
      bAutomatic=True
-     cost(0)=675
-     cost(1)=1350
-     cost(2)=2250
+	 //G-Flex: was 675,1350,2250
+     cost(0)=900
+     cost(1)=1800
+     cost(2)=3000
      LevelValues(0)=1.000000
      LevelValues(1)=1.500000
      LevelValues(2)=2.000000
