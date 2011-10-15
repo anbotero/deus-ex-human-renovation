@@ -516,7 +516,7 @@ function Fire()
 			if (VSize(HitLocation - StartTrace) > 250)
 			{
 				rot = Rotator(EndTrace - StartTrace);
-				Spawn(class'Tracer',,, StartTrace + 96 * Vector(rot), rot);
+				Spawn(class'SniperTracer',,, StartTrace + 96 * Vector(rot), rot);
 			}
 		}
 
@@ -693,6 +693,7 @@ function PreBeginPlay()
 	local Vector v1, v2;
 	local class<AutoTurretGun> gunClass;
 	local Rotator rot;
+	local mesh lMesh;
 
 	Super.PreBeginPlay();
 
@@ -727,6 +728,20 @@ function PreBeginPlay()
 		bInvincible = True;
       bDisabled = !bActive;
 	}
+}
+
+function bool Facelift(bool bOn)
+{
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPDecos.HDTPAutoturretbase", class'mesh', True));
+
+	if(Mesh == None || !bOn)
+		Mesh = Default.Mesh;
+
+	return true;
 }
 
 function PostBeginPlay()

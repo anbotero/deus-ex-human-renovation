@@ -1,6 +1,16 @@
 //=============================================================================
 // DeusExPlayer.
 //=============================================================================
+
+//Note from Y|yukichigai: FYI, adding any new variables to DeusExPlayer tends to
+//make the game crash when you attempt to save.  If you're trying to add a new
+//player modifier see if you can do it by another means, e.g. create an activated
+//inventory item that will basically act as a player modifier, or modify the
+//manner in which an existing modifier works. (See Zyme for an example) At the
+//very least, adding a new variable will screw up the savegame info, and can lead
+//to errors like starting/restarting music whenever you save or load, and bad
+//information showing up in the saveinfo fields
+
 class DeusExPlayer extends PlayerPawnExt
 	native;
 
@@ -556,7 +566,7 @@ function InitializeSubSystems()
 // ----------------------------------------------------------------------
 
 function PostPostBeginPlay()
-{
+{	
 	Super.PostPostBeginPlay();
 
 	// Bind any conversation events to this DeusExPlayer
@@ -577,6 +587,8 @@ function PostPostBeginPlay()
 
 function PreTravel()
 {
+	local float desiredVFOV;
+	local float newDefaultFOV;
 	// Set a flag designating that we're traveling,
 	// so MissionScript can check and not call FirstFrame() for this map.
 	
@@ -591,6 +603,17 @@ function PreTravel()
 	// before the map transition.  This is done to fix stuff 
 	// that's fucked up.
 	ExtinguishFire();
+	
+	//G-Flex: similar to DeusExScopeView but we know the vFoV
+	desiredVFOV = 1.044413;
+	newDefaultFOV = 57.2957795 * (2 * atan(tan(desiredVFOV/2.00) * (rootWindow.width/rootWindow.height)));
+	
+	DefaultFOV = newDefaultFOV;
+	desiredFOV = newDefaultFOV;
+	//G-Flex: I really hate changing default values, but couldn't think of anything better
+	//G-Flex: blame the devs for using default.desiredFOV so much instead of defaultFOV
+	default.DefaultFOV = newDefaultFOV;
+	default.desiredFOV = newDefaultFOV;
 }
 
 // ----------------------------------------------------------------------
@@ -653,8 +676,10 @@ event TravelPostAccept()
 			return;
 		}
 	}
+	else
+		FlagBase.DeleteFlag('PlayerTraveling', FLAG_Bool);
 
-	// Restore colors
+		// Restore colors
 	if (ThemeManager != None)
 	{
 		ThemeManager.SetMenuThemeByName(MenuThemeName);
@@ -701,7 +726,7 @@ event TravelPostAccept()
 	}
 
 	//G-Flex: This is an awful hack.
-	JumpZ = Default.JumpZ * (0.4 * swimLevel - 0.4 + speedLevel);
+	JumpZ = Default.JumpZ * (0.20 * swimLevel - 0.20 + speedLevel);
 
 	// Nuke any existing conversation
 	if (conPlay != None)
@@ -786,6 +811,10 @@ event TravelPostAccept()
 
 	// make sure the player's eye height is correct
 	BaseEyeHeight = CollisionHeight - (GetDefaultCollisionHeight() - Default.BaseEyeHeight);
+
+	
+	//== Apply the HDTP facelift
+	GlobalFacelift(True);
 }
 
 // ----------------------------------------------------------------------
@@ -829,9 +858,7 @@ function RefreshChargedPickups()
 		{
 			// Make sure tech goggles display is refreshed
 			if (anItem.IsA('TechGoggles'))
-			{
 				TechGoggles(anItem).UpdateHUDDisplay(Self);
-			}
 
 			AddChargedDisplay(anItem);
 		}
@@ -905,7 +932,59 @@ exec function DualmapF8() { if ( AugmentationSystem != None) AugmentationSystem.
 exec function DualmapF9() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(6); }
 exec function DualmapF10() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(7); }
 exec function DualmapF11() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(8); }
-exec function DualmapF12() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(9); }
+exec function DualmapF12() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(9); }
+exec function GlobalFacelift(bool bOn)
+{
+	local Actor generic;
+
+	//== HDTP might break multiplayer compatibility
+	//==  Also, we want to make sure there's something to (un)load before we go running through all this game-slowing madness
+	if(Level.NetMode != NM_StandAlone && bOn || mesh(DynamicLoadObject("HDTPItems.HDTPsodacan", class'mesh', True)) == None)
+		return;
+
+	Facelift(bOn); // Make the player's model look all fancy-like
+
+	foreach AllActors(class'Actor', generic)
+	{
+		if(DeusExDecoration(generic) != None)
+			DeusExDecoration(generic).Facelift(bOn);
+
+		if(DeusExWeapon(generic) != None)
+			DeusExWeapon(generic).Facelift(bOn);
+
+		if(DeusExPickup(generic) != None)
+			DeusExPickup(generic).Facelift(bOn);
+
+		if(DeusExAmmo(generic) != None)
+			DeusExAmmo(generic).Facelift(bOn);
+
+		if(ScriptedPawn(generic) != None)
+			ScriptedPawn(generic).Facelift(bOn);
+
+		if(DeusExCarcass(generic) != None)
+			DeusExCarcass(generic).Facelift(bOn);
+
+		if(DeusExProjectile(generic) != None)
+			DeusExProjectile(generic).Facelift(bOn);
+
+		//== Annoyingly specific, we must be
+		if(BeamTrigger(generic) != None)
+			BeamTrigger(generic).Facelift(bOn);
+	}
+}
+
+function bool Facelift(bool bOn)
+{
+	//== Only do this for DeusEx classes
+	if(instr(String(Class.Name), ".") > -1 && bOn)
+		if(instr(String(Class.Name), "DeusEx.") <= -1)
+			return false;
+	else
+		if((Class != Class(DynamicLoadObject("DeusEx."$ String(Class.Name), class'Class', True))) && bOn)
+			return false;
+
+	return true;
+}
 
 //== Takes a "clean" screenshot, with no HUD, GUI, etc.
 exec function CleanShot()
@@ -1055,6 +1134,8 @@ function BuySkillSound( int code )
 
 exec function StartNewGame(String startMap)
 {
+	//G-Flex: use some Shifter fixes for inventory-clearing
+	local Inventory item, nextItem;
 	if (DeusExRootWindow(rootWindow) != None)
 		DeusExRootWindow(rootWindow).ClearWindowStack();
 
@@ -1062,6 +1143,14 @@ exec function StartNewGame(String startMap)
 	// so MissionScript can check and not call FirstFrame() for this map.
 	flagBase.SetBool('PlayerTraveling', True, True, 0);
 
+	if(KeyRing != None)
+		KeyRing.RemoveAllKeys();
+
+	for(item = Inventory; item != None; item = nextItem)
+	{
+		nextItem = item.Inventory;
+		item.Destroy();
+	}
 	SaveSkillPoints();
 	ResetPlayer();
 	DeleteSaveGameFiles();
@@ -1070,9 +1159,9 @@ exec function StartNewGame(String startMap)
 
 	// Send the player to the specified map!
 	if (startMap == "")
-		Level.Game.SendPlayer(Self, "01_NYC_UNATCOIsland");		// TODO: Must be stored somewhere!
+		Level.Game.SendPlayer(Self, "01_NYC_UNATCOIsland?Difficulty="$combatDifficulty);		// TODO: Must be stored somewhere!
 	else
-		Level.Game.SendPlayer(Self, startMap);
+		Level.Game.SendPlayer(Self, startMap$"?Difficulty="$combatDifficulty);
 }
 
 // ----------------------------------------------------------------------
@@ -1096,7 +1185,7 @@ function StartTrainingMission()
 	ResetPlayer(True);
 	DeleteSaveGameFiles();
 	bStartingNewGame = True;
-	Level.Game.SendPlayer(Self, "00_Training");
+	Level.Game.SendPlayer(Self, "00_Training?Difficulty="$combatDifficulty);
 }
 
 // ----------------------------------------------------------------------
@@ -1105,16 +1194,24 @@ function StartTrainingMission()
 
 function ShowIntro(optional bool bStartNewGame)
 {
+	//G-Flex: more Shifter inventory-clearing fixes, it seems
+	local Inventory item, nextItem;
 	if (DeusExRootWindow(rootWindow) != None)
 		DeusExRootWindow(rootWindow).ClearWindowStack();
 
 	bStartNewGameAfterIntro = bStartNewGame;
 
+	for(item = Inventory; item != None; item = nextItem)
+	{
+		nextItem = item.Inventory;
+		item.Destroy();
+	}
+	
 	// Make sure all augmentations are OFF before going into the intro
 	AugmentationSystem.DeactivateAll();
 
 	// Reset the player
-	Level.Game.SendPlayer(Self, "00_Intro");
+	Level.Game.SendPlayer(Self, "00_Intro?Difficulty="$combatDifficulty);
 }
 
 // ----------------------------------------------------------------------
@@ -1359,14 +1456,14 @@ function CreateKeyRing()
 
 simulated function DrugEffects(float deltaTime)
 {
-	local float mult, fov;
+	local float mult, fov, augLevel;
 	local Rotator rot;
 	local DeusExRootWindow root;
 
 	root = DeusExRootWindow(rootWindow);
 
 	// random wandering and swaying when drugged
-	if (drugEffectTimer > 0)
+	if (drugEffectTimer > 0.0)
 	{
 		if ((root != None) && (root.hud != None))
 		{
@@ -1398,7 +1495,12 @@ simulated function DrugEffects(float deltaTime)
 		else
 			DesiredFOV = Default.DesiredFOV;
 
-		drugEffectTimer -= deltaTime;
+		//Aug Environment will help with drug effects
+		augLevel = AugmentationSystem.GetAugLevelValue(class'AugEnviro');
+		if(augLevel > 0.0)
+			drugEffectTimer -= deltaTime / augLevel;
+		else
+			drugEffectTimer -= deltaTime;
 		if (drugEffectTimer < 0)
 			drugEffectTimer = 0;
 	}
@@ -3476,8 +3578,9 @@ function CreateDrone()
 	aDrone = Spawn(class'SpyDrone', Self,, loc, ViewRotation);
 	if (aDrone != None)
 	{
-		aDrone.Speed = 3 * spyDroneLevelValue;
-		aDrone.MaxSpeed = 3 * spyDroneLevelValue;
+		//G-Flex: increase speed by 50%
+		aDrone.Speed = 4.5 * spyDroneLevelValue;
+		aDrone.MaxSpeed = 4.5 * spyDroneLevelValue;
 		aDrone.Damage = 5 * spyDroneLevelValue;
 		aDrone.blastRadius = 8 * spyDroneLevelValue;
 		// window construction now happens in Tick()
@@ -4307,7 +4410,7 @@ state Interpolating
 //				if (NextMap == "02_NYC_BatteryPark")
 //					ShowDemoSplash();
 //				else
-					Level.Game.SendPlayer(Self, NextMap);
+					Level.Game.SendPlayer(Self, NextMap$"?Difficulty="$combatDifficulty);
 			}
 	}
 
@@ -5225,10 +5328,26 @@ function Bool IsEmptyItemSlot( Inventory anItem, int col, int row )
 	local int slotsCol;
 	local int slotsRow;
 	local Bool bEmpty;
+	local Inventory inv;
+	local DeusExRootWindow root;
+	local PersonaScreenInventory winInv;
 
 	if ( anItem == None )
 		return False;
 
+   //=== If cheats are off, then don't let us do the "overlap" trick
+   root = DeusExRootWindow(rootWindow);   
+   winInv = PersonaScreenInventory(root.GetTopWindow());
+   if(!bCheatsEnabled && (winInv == None || !winInv.bDragging))
+   {
+	inv = Inventory;
+	while(inv != None)
+	{
+		SetInvSlots(inv, 1);
+		inv = inv.Inventory;
+	}	
+   }
+   
 	// First make sure the item can fit horizontally
 	// and vertically
 	if (( col + anItem.invSlotsX > maxInvCols ) ||
@@ -7067,7 +7186,7 @@ exec function NextBeltItem()
 				if (++slot >= 10)
 					slot = 0;
 			}
-			until (root.ActivateObjectInBelt(slot) || (startSlot == slot));
+			until ((root.ActivateObjectInBelt(slot)) || (startSlot == slot));
 
 			clientInHandPending = root.hud.belt.GetObjectFromBelt(slot);
 		}
@@ -7105,7 +7224,7 @@ exec function PrevBeltItem()
 				if (--slot <= -1)
 					slot = 9;
 			}
-			until (root.ActivateObjectInBelt(slot) || (startSlot == slot));
+			until ((root.ActivateObjectInBelt(slot)) || (startSlot == slot));
 
 			clientInHandPending = root.hud.belt.GetObjectFromBelt(slot);
 		}
@@ -7529,12 +7648,13 @@ exec function WhatAShame()
 				hitPawn.GoToState('FallingState');
 				hitPawn.SetPhysics(PHYS_Falling);
 				hitPawn.Velocity.Z += (FRand() * 66) + 5;
-				hitPawn.IncreaseFear(self,5.00);
+				//hitPawn.IncreaseFear(self,5.00);
 				carc.bNotDead = False;
 				carc.SetLocation(hitPawn.Location + (vect(0,0,1) * hitPawn.BaseEyeHeight * 0.5));
 				hitPawn.Style = STY_Translucent;
-				hitPawn.SetSkinStyle(STY_Translucent);
+				hitPawn.SetSkinStyle(STY_Translucent, None);
 				hitPawn.KillShadow();
+				hitPawn.bHasShadow = False;
 				hitPawn.bInvincible = True;
 				if (hitPawn.Inventory != None)
 				{
@@ -7607,22 +7727,22 @@ exec function WhatARottenWayToDie()
 		else if (chance < 0.75)
 		{
 			//G-Flex: mostly taken from ThrownProjectile
-			for (i=0; i<12; i++)
+			for (i=0; i<16; i++)
 			{
 				if (FRand() < 0.9)
 				{
 					loc = hitPawn.Location;
-					loc.X += FRand() * 256 - 128;
-					loc.Y += FRand() * 256 - 128;
+					loc.X += FRand() * 320 - 160;
+					loc.Y += FRand() * 320 - 160;
 					loc.Z += 32;
 					gas = spawn(class'HalonGas', None,, loc);
 					if (gas != None)
 					{
-						gas.Damage = 2;
+						gas.Damage = 1;
 						gas.Velocity = vect(0,0,0);
 						gas.Acceleration = vect(0,0,0);
 						gas.DrawScale = FRand() * 0.5 + 2.0;
-						gas.LifeSpan = FRand() * 10 + 30;
+						gas.LifeSpan = FRand() * 10 + 20;
 						if ( Level.NetMode != NM_Standalone )
 							gas.bFloating = False;
 						else
@@ -10350,6 +10470,19 @@ function bool DXReduceDamage(int Damage, name damageType, vector hitLocation, ou
 		if (augLevel >= 0.0)
 			newDamage *= augLevel;
 	}
+	
+	//G-Flex: EMP Shield gives minor protection against electricity at high level
+	//G-Flex: 25% at level 3, 50% at level 4
+	if ((damageType == 'Shocked') && (Level.NetMode == NM_Standalone))
+	{
+		if (AugmentationSystem != None)
+			augLevel = AugmentationSystem.GetClassLevel(class'AugEMP');
+
+		if (augLevel == 2)
+			newDamage *= 0.75;
+		else if (augLevel >= 3)
+			newDamage *= 0.50;
+	}
 
 	if (newDamage < Damage)
 	{
@@ -10399,6 +10532,9 @@ function Died(pawn Killer, name damageType, vector HitLocation)
 
 	if (bOnFire)
 		ExtinguishFire();
+	
+	//G-Flex: cancel drug effects on death
+	drugEffectTimer = 0;
 
 	if (AugmentationSystem != None)
 		AugmentationSystem.DeactivateAll();
@@ -12596,12 +12732,26 @@ function FailConsoleCheck()
 // ----------------------------------------------------------------------
 event Possess()
 {
+	local float desiredVFOV;
+	local float newDefaultFOV;
+	
 	Super.Possess();
 
 	if (Level.Netmode == NM_Client)
 	{
 		ClientPossessed();
 	}
+		
+	desiredVFOV = 1.044413;
+	newDefaultFOV = 57.2957795 * (2 * atan(tan(desiredVFOV/2.00) * (rootWindow.width/rootWindow.height)));
+	
+	DefaultFOV = newDefaultFOV;
+	desiredFOV = newDefaultFOV;
+	//G-Flex: I really hate changing default values, but couldn't think of anything better
+	//G-Flex: blame the devs for using default.desiredFOV so much instead of defaultFOV
+	default.DefaultFOV = newDefaultFOV;
+	default.desiredFOV = newDefaultFOV;
+	
 }
 
 // ----------------------------------------------------------------------
@@ -12713,7 +12863,8 @@ defaultproperties
      MeleeRange=50.000000
      GroundSpeed=304.000000
      AccelRate=2048.000000
-     JumpZ=270.000000
+	 //G-Flex: don't mess with default JumpZ because the level geometry can screw over players
+     //JumpZ=270.000000
      FovAngle=75.000000
      Intelligence=BRAINS_HUMAN
      AngularResolution=0.500000

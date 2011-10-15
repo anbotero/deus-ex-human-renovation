@@ -1,0 +1,20 @@
+﻿╒──────────╕
+│1.1 -> 1.2│
+╘──────────╛
+
++ HDTP compatibility added (from Shifter)
++ Enviro aug lowers drug timer duration (from Shifter)
++ Overlap bug doesn't work when cheats are off (from shifter)
++ Alarm panels/laser tripwires deactivated via EMP are deactivated for a time relative to damage (from Shifter)
++ Laser-type effects fade out near death when applicable (from Shifter)
++ Master computers skill lets you get free vending machine goods (from Shifter)
++ Compared to vanilla DX, Advanced computers skill lets you hack a little longer, and Master computers skill lets you hack for significantly longer
++ Athletics has lesser effect on jumping (default jump height is now same as vanilla DX)
++ Increase skill cost of Athletics to that of medicine/demolitions
++ Slightly nerf running/jumping bonuses from speed aug
++ Spy drone has much lower energy drain and moves 50% faster, but has significant (30 unit) energy drain on activation
++ Field of View angle is now automatically corrected based on aspect ratio, both for the normal view and for scope/binocular views
++ Standing bonus goes up a bit faster, and no longer goes down when reloading
++ EMP Shield passive and protects against electricity a bit (25% at level 3 then 50% at 4)
++ Fixed up angle calculations a bit for the laser and firing offsets so they're more accurate now
++ Modified the laser sight wander mechanism a bit (might still require tweaking)

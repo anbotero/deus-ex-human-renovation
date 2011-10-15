@@ -52,7 +52,8 @@
 + No more bullet sparks on people or animals (or precisely: Any ScriptedPawns except Robots).
 + A Deus Ex 2.0 change that allowed on-hit effects (like ricochet sparks) caused rock chips to spawn when shooting things like animals, people, robots, computers, etc. Now it only affects level geometry.
 + Decorations no longer take damage from the riot prod unless they're explosive. Yes, I consider zapping a wooden crate until it explodes a "bug".
-+ Used a new method for DXE's aspect-ratio correction, because DXE's doesn't account for ratios that aren't exactly the common ones it expects, and is otherwise inefficient and overcomplicated.
++ Used a new method for DXE's aspect-ratio correction for the targeting reticle, because DXE's doesn't account for ratios that aren't exactly the common ones it expects, and is otherwise inefficient and overcomplicated.
++ Field of View angle is now adjusted automatically when you load the game to compensate for non-4:3 aspect ratios. Unlike other fixes like kentie's launcher, this should be guaranteed to provide the corret FoV and also corrects the FoV for binoculars and scopes.
 + Fixed bug where activating an aug from a custom key would turn the aug on even if your power was already depleted. The aug would still deactivate a frame or two later because you're out of energy, but you could still, say, get a quick flash of light out of your light aug.
 
 ╒───────╕
@@ -79,16 +80,19 @@
 ╒──────╕
 │SKILLS│
 ╘──────╛
-+ Swimming skill renamed to "Athletics", and also affects walk/run speed (including while crouched, unlike the new speed aug), jumping height, and fall damage but to a lesser degree than the aug (See "Falling Damage Calculation"). To compensate a bit for the new Athletics skill, default ground speed is 95% what it used to be, default jumping velocity is 90%, and and falling damage increased a little (both in terms of safe falling distance and how much damage per unit of falling speed). This isn't a huge penalty, and "Trained" skill is more than enough to make up for it. The increase to falling damage affects the legs a little more than the torso. Proper feedback is probably necessary to balance this.
++ Swimming skill renamed to "Athletics", and also affects walk/run speed (including while crouched, unlike the new speed aug), jumping height, and fall damage but to a lesser degree than the aug (See "Falling Damage Calculation"). To compensate a bit for the new Athletics skill, default ground speed is 95% what it used to be, and falling damage increased a little (both in terms of safe falling distance and how much damage per unit of falling speed). This isn't a huge penalty, and "Trained" skill is more than enough to make up for it. The increase to falling damage affects the legs a little more than the torso. Proper feedback is probably necessary to balance this. The skill also costs more now, identical in cost to Medicine and Demolitions.
++ Computers skill now gives you more hack time than in vanilla DX: Slightly more at Advanced skill, and significantly more at Master skill. Lockout times are also shortened by the same proportion.
 
 ╒─────────────╕
 │AUGMENTATIONS│
 ╘─────────────╛
-+ The Speed aug now only provides 25% its usual bonus when you're crouched, as an indirect improvement to Run Silent and an incentive to get Athletics. The falling damage reduction is also calculated differently (see "Falling Damage Calculation").
++ The Speed aug now only provides 25% its usual bonus when you're crouched, as an indirect improvement to Run Silent and an incentive to get Athletics. The falling damage reduction is also calculated differently (see "Falling Damage Calculation"). The augmentation also provides slightly less benefit than it used to, in order to counteract stacking with the new Athletics skill, but the difference is minor.
 + Regeneration provides less health now, because previously you could regenerate an entire body part in 2.5 seconds, and were almost stupid not to take it. Now, instead of 5/15/25/40 health per second, it's 4/8/13/20. This should still be very nice to have.
 + The Targeting aug no longer affects melee weapons. Like me, you probably didn't even think it did, but it does. It makes little sense, and melee already has Combat Strength.
 + The Targeting aug also lets you look at bodies now. Why not, if you can look at crates?
 + The Targeting aug no longer dislays a health reading for invincible decorations (or corpses), and decorations that are both invincible and can't be highlighted can't be targeted at all.
++ The Spy Drone aug now has a much, much lower energy drain, and moves faster, but requires significant energy expenditure to create. This is to encourage its use as a scouting device and discourage its use as a replenishable EMP grenade.
++ The EMP Shield aug is now always on and requires no energy to maintain. In addition, at high levels it provides a little protection against electrical/shock damage (25% at level 3, and 50% at level 4).
 
 ╒──────────────╕
 │FALLING DAMAGE│
@@ -116,7 +120,7 @@
 + Sabot rounds no longer have pellet spread like buckshot, because they're supposed to be a single, solid round. It's still technically firing five pellets, but practically speaking it doesn't matter because they all hit the same location.
 + Made the scope and laser wandering less predictable by slightly randomizing how often it changes speed/direction. The laser also wanders via a completely different method that hopefully feels much, much more natural than it does in Shifter (it doesn't really work as intended at all in the original game).
 + Ricochet noises only happen 33% of the time (as compared to 100% of the time in Deus Ex 2.0). I'd like to restrict bullet ricochet noises and sparks to "hard" textures, or otherwise prevent them from occurring on things like grass, but I'm not sure how to do that at the moment, so this is the best we have for now.
-+ Firing a gun lowers your "standing still" accuracy bonus timer a bit, depending mostly on how strong the recoil is. Also, that timer doesn't increase while you're reloading, reloading decreases it by half, and you can't stack the timer as high. However, it decreases at 2/3 the former rate when you move.
++ Firing a gun lowers your "standing still" accuracy bonus timer a bit, depending mostly on how strong the recoil is. Also, that timer doesn't increase while you're reloading, and you can't stack the timer as high. However, it decreases at 2/3 the former rate when you move, and increases 20% faster when standing still than it used to.
 
 ╒───────────────────╕
 │MISCELLANEOUS ITEMS│
@@ -143,7 +147,6 @@
 * As stated above, I need to find a way to stop bullet ricocheting/sparks on level textures that are soft, like grass.
 * Some of these changes are probably not multiplayer-safe, because I'm not very clear on how all that works or what would be necessary to ensure that.
 * I can't confirm that this is compatible with The Nameless Mod, at all, because I haven't played that before, so if you can confirm/deny, let me know.
-* This almost certainly IS NOT COMPATIBLE WITH HDTP. In the future, I can probably implement Shifter's method of doing this.
 * I did not implement Deus Ex Enhanced's special GUI scaling method, or its other changes that require DirectX 10, both because I'm not entirely sure how to merge those changes, and I'd rather keep the mod safe for older/lower-end computers and Windows XP.
 
 
@@ -173,6 +176,7 @@ I've incorporated the following Shifter fixes, none of which are mine (although 
 + Paul Denton's inventory replaced with non-lethal weaponry for the first mission, so he doesn't start blasting apart NSF members with a plasma rifle after telling you to go easy on them.
 + Paul Denton conversation fix (location restriction so conversation won't start until you're actually next to him).
 + Made drug/drunkenness effect persistent across maps.
++ Environmental Protection makes the drugged/drunk effect timer go down more quickly.
 + Air bubbles make ripples when they pop.
 + Carts roll more realistically, and will roll a bit upon landing. Improved upon the Shifter script, which resulted in somewhat strange/crude behavior, so they decelerate smoothly now while still feeling "clunky". Also optimized the script a bit.
 + Projectiles/bullets entering water have ripple/splash effects.
@@ -186,6 +190,11 @@ I've incorporated the following Shifter fixes, none of which are mine (although 
 + Incorporated various, mostly small Shifter changes to DeusExWeapon.uc, and used most of Shifter's version of that file as the basis for many of my changes.
 + Weapon tracers move faster.
 + Added "cleanshot" console command (Screenshot without GUI/HUD, doesn't need cheats enabled).
++ Implemented Shifter's HDTP compatibility. Let me know if I messed it up!
++ The inventory overlap bug/exploit no longer works unless you have cheats turned on.
++ The actual damage done by an EMP blast affects how long a laser tripwire or alarm panel stays deactivated.
++ Laser-type effects fade out when near the end of their lifespan.
++ Master Computers skill lets you get free goodies out of vending machines, just to give a minor incentive to having it.
 
 
 

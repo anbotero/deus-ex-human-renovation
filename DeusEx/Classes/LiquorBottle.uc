@@ -3,11 +3,39 @@
 //=============================================================================
 class LiquorBottle extends DeusExPickup;
 
+function bool Facelift(bool bOn)
+{
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPItems.HDTPLiquorBottle", class'mesh', True));
+
+	if(Mesh == None || !bOn)
+	{
+		Texture = None;
+		Mesh = Default.Mesh;
+		PlayerViewMesh = Default.PlayerViewMesh;
+		PickupViewMesh = Default.PickupViewMesh;
+		ThirdPersonMesh = Default.ThirdPersonMesh;
+	}
+	else
+	{
+		PlayerViewMesh = Mesh;
+		PickupViewMesh = Mesh;
+		ThirdPersonMesh = Mesh;
+		Texture = Texture(DynamicLoadObject("HDTPItems.Skins.HDTPLiquorBottletex2", class'Texture'));
+	}
+
+	return true;
+}
+
 state Activated
 {
 	function Activate()
 	{
 		// can't turn it off
+
 	}
 
 	function BeginState()
@@ -30,6 +58,8 @@ Begin:
 
 defaultproperties
 {
+
+
      bBreakable=True
      maxCopies=10
      bCanHaveMultipleCopies=True

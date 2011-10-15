@@ -4,6 +4,13 @@
 class DeusExGameInfo expands GameInfo
 	config;
 	
+var Float PauseStartTime;
+var Float PauseEndTime;
+
+
+
+
+
 // ----------------------------------------------------------------------
 // Login()
 // ----------------------------------------------------------------------
@@ -21,11 +28,20 @@ event playerpawn Login
 	local byte InTeam;
 	local DumpLocation dump;
 
+
+
+
+
+
+
+
+
    //DEUS_EX AMSD In non multiplayer games, force JCDenton.
    if (!ApproveClass(SpawnClass))
    {
       SpawnClass=class'JCDentonMale';
    }
+
 
 	player = DeusExPlayer(Super.Login(Portal, Options, Error, SpawnClass));
 
@@ -140,6 +156,27 @@ function FailConsoleCheck(PlayerPawn FailPlayer)
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
 
+function bool SetPause(BOOL bPause, PlayerPawn P)
+{
+	if(bPause && Level.Pauser == "")
+		PauseStartTime = Level.TimeSeconds;
+	if(!bPause && Level.Pauser != "")
+		PauseEndTime = Level.TimeSeconds;
+
+	Super.SetPause(bPause, P);
+}
+
+
+
+
+
+
+
+
+
+
 defaultproperties
 {
+     PauseStartTime=-999999.000000
+     PauseEndTime=-999999.000000
 }

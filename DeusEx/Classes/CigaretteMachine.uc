@@ -5,16 +5,33 @@ class CigaretteMachine extends ElectronicDevices;
 
 #exec OBJ LOAD FILE=Ambient
 
+var() int Cost;
+
 var localized String msgDispensed;
 var localized String msgNoCredits;
 var int numUses;
 var localized String msgEmpty;
+
+function bool Facelift(bool bOn)
+{
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPDecos.HDTPcigarettemachine", class'mesh', True));
+	
+	if(Mesh == None || !bOn)
+		Mesh = Default.Mesh;
+
+	return true;
+}
 
 function Frob(actor Frobber, Inventory frobWith)
 {
 	local DeusExPlayer player;
 	local Vector loc;
 	local Pickup product;
+	local String hackstring;
 
 	Super.Frob(Frobber, frobWith);
 	
@@ -28,11 +45,21 @@ function Frob(actor Frobber, Inventory frobWith)
 			return;
 		}
 
-		if (player.Credits >= 8)
+		if(player.SkillSystem != None && Cost > 0)
+		{
+			if(player.SkillSystem.GetSkillLevelValue(class'SkillComputer') >= 4.000000)
+			{
+				hackstring = (class'HackableDevices').Default.msgHacking;
+				player.ClientMessage( hackstring );
+				Cost = 0;
+			}
+		}
+		
+		if (player.Credits >= Cost)
 		{
 			PlaySound(sound'VendingCoin', SLOT_None);
 			loc = Vector(Rotation) * CollisionRadius * 0.8;
-			loc.Z -= CollisionHeight * 0.6; 
+			loc.Z -= CollisionHeight * 0.7; 
 			loc += Location;
 
 			product = Spawn(class'Cigarettes', None,, loc);
@@ -46,21 +73,22 @@ function Frob(actor Frobber, Inventory frobWith)
 				product.RotationRate.Yaw = (32768 - Rand(65536)) * 4.0;
 			}
 
-			player.Credits -= 8;
-			player.ClientMessage(msgDispensed);
+			player.Credits -= Cost;
+			player.ClientMessage(Sprintf(msgDispensed,Cost));
 			numUses--;
 		}
 		else
-			player.ClientMessage(msgNoCredits);
+			player.ClientMessage(Sprintf(msgNoCredits,Cost));
 	}
 }
 
 defaultproperties
 {
-     msgDispensed="8 credits deducted from your account"
-     msgNoCredits="Costs 8 credits..."
+     msgDispensed="%d credits deducted from your account"
+     msgNoCredits="Costs %d credits..."
      numUses=10
      msgEmpty="It's empty"
+	 cost=8
      ItemName="Cigarette Machine"
      Physics=PHYS_None
      Mesh=LodMesh'DeusExDeco.CigaretteMachine'

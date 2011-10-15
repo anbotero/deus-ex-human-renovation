@@ -86,6 +86,22 @@ function PreBeginPlay()
 		flyGen = Spawn(Class'FlyGenerator', , , Location, Rotation);
 	else
 		flyGen = None;
+
+	if(Level.NetMode == NM_StandAlone)
+		Facelift(true);
+}
+
+function bool Facelift(bool bOn)
+{
+	//== Only do this for DeusEx classes
+	if(instr(String(Class.Name), ".") > -1 && bOn)
+		if(instr(String(Class.Name), "DeusEx.") <= -1)
+			return false;
+	else
+		if((Class != Class(DynamicLoadObject("DeusEx."$ String(Class.Name), class'Class', True))) && bOn)
+			return false;
+
+	return true;
 }
 
 // ----------------------------------------------------------------------
@@ -1070,6 +1086,8 @@ function Trigger(Actor Other, Pawn Instigator)
 {
 	if (bExplosive)
 	{
+		//G-Flex: frag it too
+		Frag(fragType, vect(0,0,0), ((CollisionRadius + CollisionHeight) / 2)/20.0, ((CollisionRadius + CollisionHeight) / 2)/5 + 1);
 		Explode(Location);
 		Super.Trigger(Other, Instigator);
 	}

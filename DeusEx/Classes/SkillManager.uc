@@ -255,7 +255,7 @@ function ResetSkills()
 		swimLevel = 1.0;
 	}
 
-	Player.JumpZ = Player.Default.JumpZ * (0.4 * swimLevel - 0.4 + speedLevel);
+	Player.JumpZ = Player.Default.JumpZ * (0.20 * swimLevel - 0.20 + speedLevel);
 }
 
 // ----------------------------------------------------------------------

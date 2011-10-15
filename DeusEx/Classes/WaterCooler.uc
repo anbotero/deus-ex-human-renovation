@@ -7,6 +7,33 @@ var bool bUsing;
 var int numUses;
 var localized String msgEmpty;
 
+function bool Facelift(bool bOn)
+{
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPDecos.HDTPWaterCooler", class'mesh', True));
+
+	if(Mesh == None || !bOn)
+		Mesh = Default.Mesh;
+
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function Timer()
 {
 	bUsing = False;
@@ -15,7 +42,11 @@ function Timer()
 
 function Frob(Actor Frobber, Inventory frobWith)
 {
+
+
 	Super.Frob(Frobber, frobWith);
+
+
 
 	if (bUsing)
 		return;
@@ -32,7 +63,12 @@ function Frob(Actor Frobber, Inventory frobWith)
 
 	// heal the frobber a small bit
 	if (DeusExPlayer(Frobber) != None)
+
 		DeusExPlayer(Frobber).HealPlayer(1);
+
+
+
+
 
 	PlayAnim('Bubble');
 	AmbientSound = sound'WaterBubbling';

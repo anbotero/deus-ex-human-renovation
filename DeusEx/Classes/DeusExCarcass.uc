@@ -31,11 +31,11 @@ var bool bSearchMsgPrinted;
 
 var localized string msgSearching;
 var localized string msgEmpty;
-var() localized string msgNotDead;
-var() localized string msgAnimalCarcass;
+var localized string msgNotDead;
+var localized string msgAnimalCarcass;
 var localized string msgCannotPickup;
 var localized String msgRecharged;
-var() localized string itemName;			// human readable name
+var localized string itemName;			// human readable name
 
 var() bool bInvincible;
 var bool bAnimalCarcass;
@@ -48,6 +48,26 @@ var bool wasImportant;
 
 var bool underwater;
 var float drownTimer;
+
+function PreBeginPlay()
+{
+	Super.PreBeginPlay();
+	if(Level.NetMode == NM_Standalone)
+		Facelift(true);
+}
+
+function bool Facelift(bool bOn)
+{
+	//== Only do this for DeusEx classes
+	if(instr(String(Class.Name), ".") > -1 && bOn)
+		if(instr(String(Class.Name), "DeusEx.") <= -1)
+			return false;
+	else
+		if((Class != Class(DynamicLoadObject("DeusEx."$ String(Class.Name), class'Class', True))) && bOn)
+			return false;
+
+	return true;
+}
 
 // ----------------------------------------------------------------------
 // InitFor()

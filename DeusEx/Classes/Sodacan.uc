@@ -3,8 +3,210 @@
 //=============================================================================
 class Sodacan extends DeusExPickup;
 
+function bool Facelift(bool bOn)
+{
+	local int skinnum;
+	local Texture otherIcon;
+
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPItems.HDTPsodacan", class'mesh', True));
+
+	if(Mesh == None || !bOn)
+	{
+		Mesh = Default.Mesh;
+		PlayerViewMesh = Default.PlayerViewMesh;
+		PickupViewMesh = Default.PickupViewMesh;
+		ThirdPersonMesh = Default.ThirdPersonMesh;
+	}
+	else
+	{
+		PlayerViewMesh = Mesh;
+		PickupViewMesh = Mesh;
+		ThirdPersonMesh = Mesh;
+	}
+
+	Icon = Default.Icon;
+	LargeIcon = Default.LargeIcon;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 state Activated
 {
+
 	function Activate()
 	{
 		// can't turn it off
@@ -20,14 +222,25 @@ state Activated
 		if (player != None)
 			player.HealPlayer(2, False);
 
+
+
+
+
 		PlaySound(sound'MaleBurp');
 		UseOnce();
+
 	}
 Begin:
 }
 
 defaultproperties
 {
+
+
+
+
+
+
      maxCopies=10
      bCanHaveMultipleCopies=True
      bActivatable=True

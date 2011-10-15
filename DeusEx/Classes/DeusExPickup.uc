@@ -23,6 +23,35 @@ replication
 }
 
 // ----------------------------------------------------------------------
+// PreBeginPlay()
+// ----------------------------------------------------------------------
+simulated function PreBeginPlay()
+{
+	Super.PreBeginPlay();
+
+	if(Level.NetMode == NM_Standalone)
+		Facelift(true);
+}
+
+// ----------------------------------------------------------------------
+// Facelift()
+//  Applies the new HDTP textures and meshes if present, stays the same
+//  otherwise.  Also, the name of this function is made of win
+// ----------------------------------------------------------------------
+function bool Facelift(bool bOn)
+{
+	//== Only do this for DeusEx classes
+	if(instr(String(Class.Name), ".") > -1 && bOn)
+		if(instr(String(Class.Name), "DeusEx.") <= -1)
+			return false;
+	else
+		if((Class != Class(DynamicLoadObject("DeusEx."$ String(Class.Name), class'Class', True))) && bOn)
+			return false;
+
+	return true;
+}
+
+// ----------------------------------------------------------------------
 // HandlePickupQuery()
 //
 // If the bCanHaveMultipleCopies variable is set to True, then we want

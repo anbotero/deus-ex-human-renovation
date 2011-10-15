@@ -37,6 +37,67 @@ function float ShieldDamage(name damageType)
 		return Super.ShieldDamage(damageType);
 }
 
+function bool Facelift(bool bOn)
+{
+	local int i;
+
+	if(!Super.Facelift(bOn))
+		return false;
+
+	if(bOn)
+		Mesh = mesh(DynamicLoadObject("HDTPcharacters.HDTPGunther", class'mesh', True));
+
+	if(Mesh == None || !bOn)
+	{
+		Texture = Default.Texture;
+		Mesh = Default.Mesh;
+		for(i = 0; i < 8; i++)
+		{
+			MultiSkins[i] = Default.MultiSkins[i];
+		}
+	}
+	else
+	{
+		Texture = None;
+		for(i = 0; i < 8; i++)
+		{
+			MultiSkins[i] = None;
+		}
+	}
+
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ----------------------------------------------------------------------
 // SpawnCarcass()
 //
@@ -45,6 +106,8 @@ function float ShieldDamage(name damageType)
 
 function Carcass SpawnCarcass()
 {
+
+
 	if (bStunned)
 		return Super.SpawnCarcass();
 
@@ -83,16 +146,21 @@ function Explode()
 	if (sphere != None)
 		sphere.size = explosionRadius / 32.0;
 
+
+
+
 	// spawn a mark
 	s = spawn(class'ScorchMark', Base,, Location-vect(0,0,1)*CollisionHeight, Rotation+rot(16384,0,0));
 	if (s != None)
 	{
 		s.DrawScale = FClamp(explosionDamage/30, 0.1, 3.0);
 		s.ReattachDecal();
+
 	}
 
 	// spawn some rocks and flesh fragments
 	for (i=0; i<explosionDamage/6; i++)
+
 	{
 		if (FRand() < 0.3)
 			spawn(class'Rockchip',,,Location);
@@ -101,6 +169,7 @@ function Explode()
 	}
 
 	HurtRadius(explosionDamage, explosionRadius, 'Exploded', explosionDamage*100, Location);
+
 }
 
 function GotoDisabledState(name damageType, EHitLocation hitPos)

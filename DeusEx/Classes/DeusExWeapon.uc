@@ -122,11 +122,14 @@ var float ShakePitch;
 
 //G-Flex: for better and more consisting shakiness
 var float ShakeMagnitude;
+var float ShakeMagnitudeAdjust;
 var float ShakeAngle;
 var float ShakeAngleAccel;
 var float ShakeMagnitudeToward;
 //G-Flex: for circular laser wander, we need these
-var float LaserOffPercent;
+//var float LaserOffPercent;
+var float LaserPitchProportion;
+var float LaserYawProportion;
 
 var float LaserYaw;								// Yaw of the Laser emitter, relative to the gun
 var float LaserPitch;							// Pitch of the Laser emitter, relative to the gun
@@ -319,6 +322,21 @@ function PreBeginPlay()
 	{
 		Default.mpPickupAmmoCount = Default.PickupAmmoCount;
 	}
+	if(Level.NetMode == NM_Standalone)
+		Facelift(true);
+}
+
+function bool Facelift(bool bOn)
+{
+	//== Only do this for DeusEx classes
+	if(instr(String(Class.Name), ".") > -1 && bOn)
+		if(instr(String(Class.Name), "DeusEx.") <= -1)
+			return false;
+	else
+		if((Class != Class(DynamicLoadObject("DeusEx."$ String(Class.Name), class'Class', True))) && bOn)
+			return false;
+
+	return true;
 }
 
 //
@@ -1388,12 +1406,15 @@ simulated function Tick(float deltaTime)
 	if (velMagnitude < 10)
 	{
 		//G-Flex: don't go as high; 10.0 here was 15.0 
+		//G-Flex: also increase timer 120% as fast as normal, and don't increase if reloading
 		if((standingTimer < 10.0) && !IsInState('Reload'))
-			standingTimer += deltaTime;
+			standingTimer += (1.20 * deltaTime);
 	}
 	else	// otherwise, decrease it slowly based on velocity
+	{
 		//G-Flex: decrease by 2/3 former value
 		standingTimer = FMax(0.00, standingTimer - 0.02*deltaTime*velMagnitude);
+	}
 
 	if (bLasing || bZoomed)
 	{
@@ -1426,10 +1447,10 @@ simulated function Tick(float deltaTime)
 			{
 				//ShakeMagnitude and ShakeAngle start off randomized
 				//gravitate ShakeMagnitude toward ShakeMagnitudeToward
-				ShakeMagnitudeToward = currentAccuracy * (500 + Rand(accunit - 500));
+				ShakeMagnitudeToward = 900 + (0.75 * Rand(accunit));
 				//how much ShakeAngle changes per second in angle units
 				//between -360 and 360 degrees
-				ShakeAngleAccel = (FRand() * 4 * pi) - (2 * pi);
+				ShakeAngleAccel = (FRand() * 3 * pi) - (1.5 * pi);
 				//G-Flex: laser varies less often
 				ShakeTimer -= 0.50 + (Rand(21) / 100.00);
 			}
@@ -1447,28 +1468,34 @@ simulated function Tick(float deltaTime)
 			rot.Yaw += Rand(5) - 2;
 			rot.Pitch += Rand(5) - 2;
 
-			if(!bZoomed)
+			if(!bZoomed && (currentAccuracy != 0.0))
 			{
-				ShakeMagnitude += 2 * (ShakeMagnitudeToward - ShakeMagnitude) * deltaTime;
-				if (ShakeMagnitude > ShakeMagnitudeToward)
-					ShakeMagnitude = ShakeMagnitudeToward;
-				ShakeAngle += ShakeAngleAccel * deltaTime;
-				//log(ShakeAngle); log(ShakeMagnitude);
-				ShakeYaw = ShakeMagnitude * Cos(ShakeAngle);
-				ShakePitch = ShakeMagnitude * Sin(ShakeAngle);
-				//G-Flex: MAXIMUM DRIFT SPEED: accunit * 6
-				LaserYaw += ((ShakeYaw + (ShakeYaw * currentAccuracy * 0.5)) + (ShakeYaw * velMagnitude / 200)) * deltaTime;
-				LaserPitch += ((ShakePitch + (ShakePitch * currentAccuracy)) + (ShakePitch * velMagnitude / 200)) * deltaTime;
-				//G-Flex: move to the center with velocity dependent on how far out we are
-				LaserOffPercent = sqrt(Square(LaserYaw) + Square(LaserPitch)) / (currentAccuracy * accunit);
-				LaserOffPercent = LaserOffPercent ** 4;
-				LaserOffPercent += (LaserOffPercent * currentAccuracy * 0.5);
-				LaserOffPercent += (LaserOffPercent * velMagnitude / 200);
-				LaserYaw -= (LaserYaw * LaserOffPercent) * deltaTime;
-				LaserPitch -= (LaserPitch * LaserOffPercent) * deltaTime;
+				ShakeMagnitude += 2.25 * (ShakeMagnitudeToward - ShakeMagnitude) * deltaTime;
+								
+				//G-Flex: adjust for accuracy and movement
+				ShakeMagnitudeAdjust = ShakeMagnitude * (1.0 + velMagnitude/200.0);
+				
+				//G-Flex: ShakeMagnitudeAdjust max is 50 + (0.50*(500+accunit)) * currentAccuracy * (1 + velMagnitude/200)
+				//G-Flex: = 300 + 0.5*accunit * currentAccuracy * (1 + velMagnitude/200)
 
-				rot.Yaw += LaserYaw;
-				rot.Pitch += LaserPitch;
+				ShakeAngle += ShakeAngleAccel * deltaTime;
+				//G-Flex: using mixed units sucks, but we need to
+				ShakeYaw = 10430.3783505 * atan(tan(ShakeMagnitudeAdjust * 0.000095873799)*cos(ShakeAngle));//ShakeMagnitudeAdjust * Cos(ShakeAngle);
+				ShakePitch = 10430.3783505 * atan(tan(ShakeMagnitudeAdjust * 0.000095873799)*sin(ShakeAngle));//ShakeMagnitudeAdjust * Sin(ShakeAngle);
+				LaserYaw += ShakeYaw * deltaTime;
+				LaserPitch += ShakePitch * deltaTime;
+				LaserYawProportion = LaserYaw / accunit;
+				LaserPitchProportion = LaserPitch / accunit;
+				LaserYawProportion = Square(LaserYawProportion);
+				LaserPitchProportion = Square(LaserPitchProportion);
+				if (LaserYaw < 0)
+					LaserYawProportion *= -1.0;
+				if (LaserPitch < 0)
+					LaserPitchProportion *= -1.0;
+				LaserYaw -= LaserYawProportion * deltaTime * (900 + 0.75*accunit * (1 + velMagnitude/200));
+				LaserPitch -= LaserPitchProportion * deltaTime * (900 + 0.75*accunit * (1 + velMagnitude/200));
+				rot.Yaw += LaserYaw * currentAccuracy;
+				rot.Pitch += LaserPitch * currentAccuracy;
 			}
 			Emitter.SetLocation(loc);
 			Emitter.SetRotation(rot);
@@ -1540,10 +1567,12 @@ simulated function RefreshScopeDisplay(DeusExPlayer player, bool bInstant, bool 
 	{
 		// Show the Scope View
 		DeusExRootWindow(player.rootWindow).scopeView.ActivateView(ScopeFOV, False, bInstant);
+		ResetShake();
 	}
    else if (!bScopeOn)
    {
       DeusExrootWindow(player.rootWindow).scopeView.DeactivateView();
+	  ResetShake();
    }
 }
 
@@ -1571,6 +1600,7 @@ function LaserOn()
 			Emitter.TurnOn();
 
 		bLasing = True;
+		ResetShake();
 	}
 }
 
@@ -1582,6 +1612,7 @@ function LaserOff()
 			Emitter.TurnOff();
 
 		bLasing = False;
+		ResetShake();
 	}
 }
 
@@ -2055,13 +2086,14 @@ simulated function ResetShake()
 	
 	if((!bZoomed) && (bLasing))
 	{
-		LaserAngle = currentAccuracy * (Rand(3072) - 1536);
+		//G-Flex: we need radians for trig math, but URot units for the results. Sigh.
+		LaserAngle = (Rand(3072) - 1536);
 		LaserDirection = (FRand() * 2 * pi);
-		LaserYaw = LaserAngle * Cos(LaserDirection);
-		LaserPitch = LaserAngle * Sin(LaserDirection);
-		ShakeMagnitude = currentAccuracy * Rand(1536);
-		ShakeMagnitudeToward = currentAccuracy * (Rand(1036) + 500);
-		ShakeAngleAccel = (FRand() * 2 * pi) - pi;
+		LaserYaw = 10430.3783505 * atan(tan(LaserAngle * 0.000095873799) * cos(LaserDirection));//LaserAngle * Cos(LaserDirection);
+		LaserPitch = 10430.3783505 * atan(tan(LaserAngle * 0.000095873799) * sin(LaserDirection));//LaserAngle * Sin(LaserDirection);
+		ShakeMagnitude = 900 + (0.75 * Rand(1536));
+		ShakeMagnitudeToward = 900 + (0.75 * Rand(1536));
+		ShakeAngleAccel = (FRand() * 4 * pi) - (2 * pi);
 		ShakeAngle = Rand(2*pi);
 	}
 	else if (bZoomed)
@@ -2535,8 +2567,8 @@ simulated function Projectile DoProjectileFire(class<projectile> ProjClass, floa
 		{
 			fireAngle = Accuracy * (Rand(3072) - 1536);
 			fireRotationAngle = FRand() * 2 * pi;
-			AdjustedAim.Yaw += fireAngle * Cos(fireRotationAngle);
-			AdjustedAim.Pitch += fireangle * Sin(fireRotationAngle);
+			AdjustedAim.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
+			AdjustedAim.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));//fireangle * Sin(fireRotationAngle);
 		}
 		//G-Flex: use old method for NPCs/hand-to-hand like DoTraceFire()
 		else
@@ -2709,8 +2741,8 @@ simulated function DoTraceFire( float Accuracy )
 		fireAngle = Accuracy * (Rand(3072) - 1536);
 		//G-Flex: calculate direction from center
 		fireRotationAngle = FRand() * 2 * pi;
-		aimRot.Yaw += fireAngle * Cos(fireRotationAngle);
-		aimRot.Pitch += fireangle * Sin(fireRotationAngle);
+		aimRot.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
+		aimRot.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));//fireangle * Sin(fireRotationAngle);
 	}
 	
 	//G-Flex: now determine where all the shots hit
@@ -2733,8 +2765,8 @@ simulated function DoTraceFire( float Accuracy )
 		{
 		fireAngle = spreadAccuracy * (Rand(3072) - 1536);
 		fireRotationAngle = FRand() * 2 * pi;
-		rot.Yaw += fireAngle * Cos(fireRotationAngle);
-		rot.Pitch += fireangle * Sin(fireRotationAngle);
+		rot.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
+		rot.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));//fireangle * Sin(fireRotationAngle);
 		}
 		EndTrace = StartTrace + ( FMax(1024.0, MaxRange) * vector(rot) );
 	      }
@@ -3828,8 +3860,8 @@ Begin:
 				bWasZoomed = True;
 			}
 			//G-Flex: lower standing timer when reloading
-			if (Owner.IsA('DeusExPlayer'))
-				StandingTimer *= 0.5;
+			//if (Owner.IsA('DeusExPlayer'))
+			//	StandingTimer *= 0.5;
 			Owner.PlaySound(CockingSound, SLOT_None,,, 1024);		// CockingSound is reloadbegin
 			PlayAnim('ReloadBegin');
 			NotifyOwner(True);

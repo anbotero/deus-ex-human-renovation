@@ -1,7 +1,39 @@
 //=============================================================================
 // WeaponCrowbar.
 //=============================================================================
+
+
+
 class WeaponCrowbar extends DeusExWeapon;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 simulated function PreBeginPlay()
 {
@@ -16,7 +48,88 @@ simulated function PreBeginPlay()
 		AccurateRange = mpAccurateRange;
 		MaxRange = mpMaxRange;
 	}
+
 }
+
+function bool Facelift(bool bOn)
+{
+	local Name tName;
+
+	if(!Super.Facelift(bOn))
+		return false;
+
+	tName = GetStateName();
+
+	if(bOn)
+	{
+		PlayerViewMesh = mesh(DynamicLoadObject("HDTPItems.HDTPWeaponCrowbar", class'mesh', True));
+		PickupViewMesh = mesh(DynamicLoadObject("HDTPItems.HDTPCrowbarPickup", class'mesh', True));
+		ThirdPersonMesh = mesh(DynamicLoadObject("HDTPItems.HDTPCrowbar3rd", class'mesh', True));
+	}
+
+	if(PlayerViewMesh == None || PickupViewMesh == None || ThirdPersonMesh == None || !bOn)
+	{
+		Texture = None;
+		PlayerViewMesh = Default.PlayerViewMesh;
+		PickupViewMesh = Default.PickupViewMesh;
+		ThirdPersonMesh = Default.ThirdPersonMesh;
+	}
+	else
+	{
+		Mesh = PickupViewMesh;
+		Texture = Texture(DynamicLoadObject("HDTPItems.Skins.HDTPWeaponCrowbarTex2", class'Texture'));
+	}
+
+	if(tName == 'Pickup')
+		Mesh = PickupViewMesh;
+	else
+		Mesh = PlayerViewMesh;
+
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 defaultproperties
 {
@@ -28,6 +141,8 @@ defaultproperties
      maxRange=80
      AccurateRange=80
      BaseAccuracy=1.000000
+
+
      bPenetrating=False
      bHasMuzzleFlash=False
      bHandToHand=True
@@ -41,6 +156,7 @@ defaultproperties
      ReloadCount=0
      bInstantHit=True
      FireOffset=(X=-40.000000,Y=15.000000,Z=8.000000)
+
      shakemag=20.000000
      FireSound=Sound'DeusExSounds.Weapons.CrowbarFire'
      SelectSound=Sound'DeusExSounds.Weapons.CrowbarSelect'
