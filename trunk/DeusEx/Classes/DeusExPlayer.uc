@@ -3578,9 +3578,8 @@ function CreateDrone()
 	aDrone = Spawn(class'SpyDrone', Self,, loc, ViewRotation);
 	if (aDrone != None)
 	{
-		//G-Flex: increase speed by 50%
-		aDrone.Speed = 4.5 * spyDroneLevelValue;
-		aDrone.MaxSpeed = 4.5 * spyDroneLevelValue;
+		aDrone.Speed = 3 * spyDroneLevelValue;
+		aDrone.MaxSpeed = 3 * spyDroneLevelValue;
 		aDrone.Damage = 5 * spyDroneLevelValue;
 		aDrone.blastRadius = 8 * spyDroneLevelValue;
 		// window construction now happens in Tick()
@@ -3669,8 +3668,10 @@ state PlayerWalking
 				// opportunity for client to translate movement to server
 				MoveDrone( DeltaTime, loc );
 
-				// freeze the player
-				Velocity = vect(0,0,0);
+				//Velocity = vect(0,0,0);
+				//G-Flex: stop player from accelerating instead of freezing them completely
+				//G-Flex: this preserves swim bob/floating especially
+				Acceleration = vect(0,0,0);
 			}
 			return;
 		}
@@ -4083,6 +4084,41 @@ state PlayerSwimming
 		Super.ZoneChange(NewZone);
 	}
 
+	//G-Flex: overload this so the spy drone can work properly while swimming
+	function ProcessMove(float DeltaTime, vector NewAccel, eDodgeDir DodgeMove, rotator DeltaRot)
+	{	
+		local vector loc;
+		
+		// if the spy drone augmentation is active
+		if (bSpyDroneActive)
+		{
+			if ( aDrone != None ) 
+			{
+				// put away whatever is in our hand
+				if (inHand != None)
+					PutInHand(None);
+
+				// make the drone's rotation match the player's view
+				aDrone.SetRotation(ViewRotation);
+
+				// move the drone
+				loc = Normal((aUp * vect(0,0,1) + aForward * vect(1,0,0) + aStrafe * vect(0,1,0)) >> ViewRotation);
+
+				// opportunity for client to translate movement to server
+				MoveDrone( DeltaTime, loc );
+
+				// freeze the player
+				//Velocity = vect(0,0,0);
+				//G-Flex: stop player from accelerating instead of freezing them completely
+				//G-Flex: this preserves swim bob/floating especially
+				Acceleration = vect(0,0,0);
+			}
+			return;
+		}
+		
+		Super.ProcessMove(DeltaTime, NewAccel, DodgeMove, DeltaRot);
+	}
+	
 	event PlayerTick(float deltaTime)
 	{
 		local vector loc;
@@ -4655,7 +4691,17 @@ exec function ParseLeftClick()
 	if ((inHand != None) && !bInHandTransition)
 	{
 		if (inHand.bActivatable)
+		{
+			//G-Flex: don't let the player activate multiple copies of the same charged item
+			if (inHand.IsA('ChargedPickup'))
+			{
+				if (UsingChargedPickup(class<chargedpickup>(inHand.class)) && !ChargedPickup(inHand).bIsActive)
+				{
+					return;
+				}
+			}
 			inHand.Activate();
+		}
 		else if (FrobTarget != None)
 		{
 			// special case for using keys or lockpicks on doors
@@ -6118,11 +6164,12 @@ exec function bool DropItem(optional Inventory inv, optional bool bDrop)
 			}
 		}
 
+		//G-Flex: allow dropping charged items, since you can now toggle them
 		// Don't allow active ChargedPickups to be dropped
-		if ((item.IsA('ChargedPickup')) && (ChargedPickup(item).IsActive()))
-        {
-			return False;
-        }
+		//if ((item.IsA('ChargedPickup')) && (ChargedPickup(item).IsActive()))
+        //{
+		//	return False;
+        //}
 
 		// don't let us throw away the nanokeyring
 		if (item.IsA('NanoKeyRing'))
@@ -10415,9 +10462,10 @@ function bool DXReduceDamage(int Damage, name damageType, vector hitLocation, ou
 	}
 	
 	//Lork: The hazmat suit needs to be split off into its own block of code to do its job properly
+	//G-Flex: also protect against 'Burned' damage type, e.g. burning barrels
 	if ((damageType == 'TearGas') || (damageType == 'PoisonGas') || (damageType == 'Radiation') ||
 		(damageType == 'HalonGas')  || (damageType == 'PoisonEffect') || (damageType == 'Poison') ||
-		(damageType == 'Flamed') || (damageType == 'EMP') || (damageType == 'Shocked')) //Damage types that it was supposed to protect you from, but didn't
+		(damageType == 'Flamed') || (damageType == 'EMP') || (damageType == 'Shocked') || (damageType == 'Burned')) //Damage types that it was supposed to protect you from, but didn't
 	{
 		if (UsingChargedPickup(class'HazMatSuit'))
 		{

@@ -2,7 +2,7 @@
 
                Deus Ex: HUMAN RENOVATION
 
-                         v1.2
+                         v1.21
 
    http://code.google.com/p/deus-ex-human-renovation
 ╘═════════════════════════════════════════════════════╛
@@ -55,6 +55,8 @@
 + Used a new method for DXE's aspect-ratio correction for the targeting reticle, because DXE's doesn't account for ratios that aren't exactly the common ones it expects, and is otherwise inefficient and overcomplicated.
 + Field of View angle is now adjusted automatically when you load the game to compensate for non-4:3 aspect ratios. Unlike other fixes like kentie's launcher, this should be guaranteed to provide the corret FoV and also corrects the FoV for binoculars and scopes.
 + Fixed bug where activating an aug from a custom key would turn the aug on even if your power was already depleted. The aug would still deactivate a frame or two later because you're out of energy, but you could still, say, get a quick flash of light out of your light aug.
++ The HazMat suit now properly protects against all fire/burning damage. This solves a bug in Deus Ex 2.0 where it would protect against flamethrowers and other things that would set you on fire, but not from other fire damage sources, like burning barrels or plasma bolts.
++ The Spy Drone augmentation now properly restricts player movement if you use it underwater, and uses a better method for doing so. Previously, using it underwater would cause you to move the spy drone while you swam, instead of the player sticking in place like he's supposed to.
 
 ╒───────╕
 │CORPSES│
@@ -91,7 +93,7 @@
 + The Targeting aug no longer affects melee weapons. Like me, you probably didn't even think it did, but it does. It makes little sense, and melee already has Combat Strength.
 + The Targeting aug also lets you look at bodies now. Why not, if you can look at crates?
 + The Targeting aug no longer dislays a health reading for invincible decorations (or corpses), and decorations that are both invincible and can't be highlighted can't be targeted at all.
-+ The Spy Drone aug now has a much, much lower energy drain, and moves faster, but requires significant energy expenditure to create. This is to encourage its use as a scouting device and discourage its use as a replenishable EMP grenade.
++ The Spy Drone aug now has a much, much lower energy drain, but requires significant energy expenditure to create. This is to encourage its use as a scouting device and discourage its use as a replenishable EMP grenade.
 + The EMP Shield aug is now always on and requires no energy to maintain. In addition, at high levels it provides a little protection against electrical/shock damage (25% at level 3, and 50% at level 4).
 
 ╒──────────────╕
@@ -125,7 +127,7 @@
 ╒───────────────────╕
 │MISCELLANEOUS ITEMS│
 ╘───────────────────╛
-+ You can put activated charged items back in your hand now. This is preferable now that they aren't single-use, because you might want to cycle to them to shut them off, or something like that.
++ You can put activated charged items back in your hand now. This is preferable now that they aren't single-use, because you might want to cycle to them to shut them off, or something like that. You can also throw/drop them while active (they turn off), and you can't activate more than one of the same type at a time (why would you?). If activated and still in your hand, they turn translucent (so you can still see what item it is, but transparent to represent the fact that it's not really in your hands).
 + Removed the usage of extra soda/candy textures implemented in Deus Ex 2.0. In my opinion, they look clearly worse than the ones used in the default game, and it's entirely possible that's why they weren't used. More importantly, their behavior when you have multiple kinds in your inventory is slightly buggy in my experience, so I'd rather leave them out entirely. I think Shifter made them work better, but I don't think the quality is worth the effort.
 
 ╒────────────────╕
