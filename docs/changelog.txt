@@ -1,4 +1,16 @@
-﻿╒──────────╕
+﻿╒───────────╕
+│1.2 -> 1.21│
+╘───────────╛
+
++ Spy Drone now properly restricts player movement underwater, and uses a better method for doing so than the game previously used while walking (so you still bob/float in water, but no longer accidentally swim around while piloting the drone)
++ Nerfed Spy Drone speed bonus; it's no longer necessary since the energy drain is so much lower
++ HazMat suits properly protect you against all forms of fire/burning damage now, not just ones that would set you on fire
++ You can no longer activated a charged pickup (hazmat, rebreather, etc.) if you already have one of that same type active, since there's no benefit to it and it might mislead players into believing that stacking them has greater effect
++ Charged pickups look transparent in your hand if they're active, because it was weird that it looked like you were still holding a hazmat suit while wearing it, but this still retains obvious visual indication of the item type
++ You can now throw a charged pickup even while it's active, but it'll (obviously) turn off in the process
+
+
+╒──────────╕
 │1.1 -> 1.2│
 ╘──────────╛
 

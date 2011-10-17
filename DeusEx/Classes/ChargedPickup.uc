@@ -76,6 +76,10 @@ function ChargedPickupBegin(DeusExPlayer Player)
    }
 
 	bIsActive = True;
+	
+	//G-Flex: turn invisible because holding the hazmat suit you're wearing in your hands is weird
+	//G-Flex: actually just turn translucent to make it more clear what we're toggling
+	Style = STY_Translucent;
 }
 
 // ----------------------------------------------------------------------
@@ -95,6 +99,9 @@ function ChargedPickupEnd(DeusExPlayer Player)
 		Player.DeleteInventory(Self);
 
 	bIsActive = False;
+	
+	//G-Flex: make fully visible again
+	Style = Default.Style;
 }
 
 // ----------------------------------------------------------------------
@@ -129,7 +136,6 @@ simulated function int CalcChargeDrain(DeusExPlayer Player)
 	if (skillNeeded != None)
 		skillValue = Player.SkillSystem.GetSkillLevelValue(skillNeeded);
 	drain *= skillValue;
-
 	return Int(drain);
 }
 
