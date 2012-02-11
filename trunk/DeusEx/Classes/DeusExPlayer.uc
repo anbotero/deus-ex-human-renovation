@@ -1485,15 +1485,23 @@ simulated function DrugEffects(float deltaTime)
 		rot.Yaw = FClamp(rot.Yaw, -4096, 4096);
 
 		ViewRotation += rot;
-
-		if ( Level.NetMode == NM_Standalone )
+		
+		//G-Flex: Retain scoped FOV, and keep jitter even at max drug-zoom
+		//G-Flex: Also, adjust the FOV adjustment depending on default FOV
+		//G-Flex: and limit to 0.4 times normal viewing angle (30.0 for 4:3) instead of a constant 30
+		//G-Flex: It's not perfect but it'll prevent drug FOV changes from being
+		//G-Flex: too different depending on aspect ratio 
+		if (!(((DeusExWeapon(inHand) != None) && (DeusExWeapon(inHand).bZoomed)) || (inHand.IsA('Binoculars') && (inHand.bActive))))
 		{
-			fov = Default.DesiredFOV - drugEffectTimer + Rand(2);
-			fov = FClamp(fov, 30, Default.DesiredFOV);
-			DesiredFOV = fov;
+			if ( Level.NetMode == NM_Standalone )
+			{
+				fov = Default.DesiredFOV - (drugEffectTimer * (Default.DesiredFOV / 75.0));
+				fov = FClamp(fov, (Default.DesiredFOV * 0.4), Default.DesiredFOV) + Rand(2);
+				DesiredFOV = fov;
+			}
+			else
+				DesiredFOV = Default.DesiredFOV;
 		}
-		else
-			DesiredFOV = Default.DesiredFOV;
 
 		//Aug Environment will help with drug effects
 		augLevel = AugmentationSystem.GetAugLevelValue(class'AugEnviro');
@@ -1512,7 +1520,9 @@ simulated function DrugEffects(float deltaTime)
 			{
 				root.hud.SetBackground(None);
 				root.hud.SetBackgroundStyle(DSTY_Normal);
-				DesiredFOV = Default.DesiredFOV;
+				//G-Flex: Don't attempt to reset the FOV if we're scoped
+				if (!(((DeusExWeapon(inHand) != None) && (DeusExWeapon(inHand).bZoomed)) || (inHand.IsA('Binoculars') && (inHand.bActive))))
+					DesiredFOV = Default.DesiredFOV;
 			}
 		}
 	}
@@ -12780,8 +12790,9 @@ function FailConsoleCheck()
 // ----------------------------------------------------------------------
 event Possess()
 {
-	local float desiredVFOV;
-	local float newDefaultFOV;
+	//G-Flex: calculating the FoV here doesn't work because rootWindow doesn't have the right res
+	//local float desiredVFOV;
+	//local float newDefaultFOV;
 	
 	Super.Possess();
 
@@ -12790,15 +12801,15 @@ event Possess()
 		ClientPossessed();
 	}
 		
-	desiredVFOV = 1.044413;
-	newDefaultFOV = 57.2957795 * (2 * atan(tan(desiredVFOV/2.00) * (rootWindow.width/rootWindow.height)));
+	//desiredVFOV = 1.044413;
+	//newDefaultFOV = 57.2957795 * (2 * atan(tan(desiredVFOV/2.00) * (rootWindow.width/rootWindow.height)));
 	
-	DefaultFOV = newDefaultFOV;
-	desiredFOV = newDefaultFOV;
+	//DefaultFOV = newDefaultFOV;
+	//desiredFOV = newDefaultFOV;
 	//G-Flex: I really hate changing default values, but couldn't think of anything better
 	//G-Flex: blame the devs for using default.desiredFOV so much instead of defaultFOV
-	default.DefaultFOV = newDefaultFOV;
-	default.desiredFOV = newDefaultFOV;
+	//default.DefaultFOV = newDefaultFOV;
+	//default.desiredFOV = newDefaultFOV;
 	
 }
 
