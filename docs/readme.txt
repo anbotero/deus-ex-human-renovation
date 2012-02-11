@@ -2,7 +2,7 @@
 
                Deus Ex: HUMAN RENOVATION
 
-                         v1.21
+                         v1.22
 
    http://code.google.com/p/deus-ex-human-renovation
 ╘═════════════════════════════════════════════════════╛
@@ -18,7 +18,7 @@
 │INSTALLATION│
 ╘────────────╛
 	First, make sure you have the Deus Ex v1112fm patch installed. This is very important, and make sure you install the right one! v1112fm is the multiplayer patch; the singleplayer-only patch won't work.
-	Second, install Kentie's new Deus Ex executable (http://kentie.net/article/dxguide/) from which to run the game. This isn't strictly necessary, but you'll need it for the widescreen fixes to work or make sense, and to have the proper field-of-vision, plus it fixes other problems and there's just no reason not to. You might also want to check out his DirectX 10 renderer, if you're on Windows Vista or Windows 7, but it's in no way necessary to run this mod.
+	Second, install Kentie's new Deus Ex executable (http://kentie.net/article/dxguide/) from which to run the game. This isn't strictly necessary, but it fixes some problems, has some useful options, and there's just no reason not to. You might also want to check out his DirectX 10 renderer, if you're on Windows Vista or Windows 7, but it's in no way necessary to run this mod.
 	Third, go to the "System" folder of your Deus Ex install directory (most likely C:\DeusEx\System, but may be elsewhere; if you have the Steam version it's probably in "C:\Program Files\Steam\steamapps\common\deusex\System"). Back up the files "DeusEx.u" and "DeusEx.int" (that's ".int", not ".ini"), and replace them with the ones in this package. I recommend backing up the originals in case you want to play original Deus Ex, which would require swapping the files back in and replacing those of this package.
 
 ╒────────────────╕
@@ -124,9 +124,10 @@
 + Ricochet noises only happen 33% of the time (as compared to 100% of the time in Deus Ex 2.0). I'd like to restrict bullet ricochet noises and sparks to "hard" textures, or otherwise prevent them from occurring on things like grass, but I'm not sure how to do that at the moment, so this is the best we have for now.
 + Firing a gun lowers your "standing still" accuracy bonus timer a bit, depending mostly on how strong the recoil is. Also, that timer doesn't increase while you're reloading, and you can't stack the timer as high. However, it decreases at 2/3 the former rate when you move, and increases 20% faster when standing still than it used to.
 
-╒───────────────────╕
-│MISCELLANEOUS ITEMS│
-╘───────────────────╛
+╒─────────────╕
+│MISCELLANEOUS│
+╘─────────────╛
++ Drug effects now zoom to a degree dependent on your normal Field of View angle, which should make more sense. It also now allows you to zoom in properly with the scope and binoculars. Drunken sniping is probably still not recommended.
 + You can put activated charged items back in your hand now. This is preferable now that they aren't single-use, because you might want to cycle to them to shut them off, or something like that. You can also throw/drop them while active (they turn off), and you can't activate more than one of the same type at a time (why would you?). If activated and still in your hand, they turn translucent (so you can still see what item it is, but transparent to represent the fact that it's not really in your hands).
 + Removed the usage of extra soda/candy textures implemented in Deus Ex 2.0. In my opinion, they look clearly worse than the ones used in the default game, and it's entirely possible that's why they weren't used. More importantly, their behavior when you have multiple kinds in your inventory is slightly buggy in my experience, so I'd rather leave them out entirely. I think Shifter made them work better, but I don't think the quality is worth the effort.
 

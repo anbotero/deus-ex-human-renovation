@@ -2,38 +2,7 @@
 // WeaponCrowbar.
 //=============================================================================
 
-
-
 class WeaponCrowbar extends DeusExWeapon;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 simulated function PreBeginPlay()
 {
@@ -88,61 +57,16 @@ function bool Facelift(bool bOn)
 	return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 defaultproperties
 {
      LowAmmoWaterMark=0
      GoverningSkill=Class'DeusEx.SkillWeaponLowTech'
      NoiseLevel=0.050000
      reloadTime=0.000000
-     HitDamage=6
+     HitDamage=60
      maxRange=80
      AccurateRange=80
      BaseAccuracy=1.000000
-
-
      bPenetrating=False
      bHasMuzzleFlash=False
      bHandToHand=True
@@ -156,7 +80,6 @@ defaultproperties
      ReloadCount=0
      bInstantHit=True
      FireOffset=(X=-40.000000,Y=15.000000,Z=8.000000)
-
      shakemag=20.000000
      FireSound=Sound'DeusExSounds.Weapons.CrowbarFire'
      SelectSound=Sound'DeusExSounds.Weapons.CrowbarSelect'

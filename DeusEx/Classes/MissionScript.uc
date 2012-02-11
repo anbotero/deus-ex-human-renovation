@@ -90,7 +90,7 @@ function FirstFrame()
 	local name flagName;
 	local ScriptedPawn P;
 	local int i;
-
+	
 	flags.DeleteFlag('PlayerTraveling', FLAG_Bool);
 
 	// Check to see which NPCs should be dead from prevous missions
