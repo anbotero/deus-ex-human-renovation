@@ -63,7 +63,7 @@ defaultproperties
      GoverningSkill=Class'DeusEx.SkillWeaponLowTech'
      NoiseLevel=0.050000
      reloadTime=0.000000
-     HitDamage=60
+     HitDamage=6
      maxRange=80
      AccurateRange=80
      BaseAccuracy=1.000000
