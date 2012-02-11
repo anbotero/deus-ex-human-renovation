@@ -1,6 +1,6 @@
-﻿╒───────────╕
-│1.2 -> 1.22│
-╘───────────╛
+﻿╒────────────╕
+│1.21 -> 1.22│
+╘────────────╛
 
 + Fixed a problem with the Field of View angle correction code which prevented it from working properly, and altered the drug effects code so it zooms in your view to a degree dependent on your normal FoV angle and won't prevent proper zooming with the scope/binoculars.
 
