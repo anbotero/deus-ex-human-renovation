@@ -96,9 +96,13 @@ function FirstFrame()
 		}
 	}
 	
-	if (dxInfo != None && !(player.IsInState('Dying')) && !(player.IsInState('Paralyzed')) && !(player.IsInState('Interpolating')) && 
-	player.dataLinkPlay == None && Level.Netmode == NM_Standalone)
-		player.SaveGame(-3, "Auto Save"); //Lork: Autosave after loading a new map... this saves lives!
+	//DX_Blaster: only Autosave if intended (->check User.ini setting)
+	if (Player.bAutoSave)
+	{
+		if (dxInfo != None && !(player.IsInState('Dying')) && !(player.IsInState('Paralyzed')) && !(player.IsInState('Interpolating')) && 
+		player.dataLinkPlay == None && Level.Netmode == NM_Standalone)
+			player.SaveGame(-3, "Auto Save"); //Lork: Autosave after loading a new map... this saves lives!
+	}
 }
 
 // ----------------------------------------------------------------------
