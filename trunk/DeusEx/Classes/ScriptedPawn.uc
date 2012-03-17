@@ -1768,7 +1768,7 @@ function float ComputeActorVisibility(actor seeActor)
 function UpdateReactionLevel(bool bRise, float deltaSeconds)
 {
 	local float surpriseTime;
-
+	
 	// Handle surprise levels...
 	if (bRise)
 	{
@@ -1777,7 +1777,7 @@ function UpdateReactionLevel(bool bRise, float deltaSeconds)
 			surpriseTime = SurprisePeriod;
 			if (surpriseTime <= 0)
 				surpriseTime = 0.00000001;
-			ReactionLevel += deltaSeconds/surpriseTime;
+			ReactionLevel += (deltaSeconds/surpriseTime);
 			if (ReactionLevel > 1.0)
 				ReactionLevel = 1.0;
 		}

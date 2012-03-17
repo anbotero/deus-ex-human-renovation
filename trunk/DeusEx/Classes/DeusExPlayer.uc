@@ -219,6 +219,7 @@ var travel Bool bIgnoreNextShowMenu;
 var String NextMap;
 
 // Configuration Variables
+var globalconfig bool bAutoSave;					// DX_Blaster: new Autosave option on/off
 var globalconfig bool bObjectNames;					// Object names on/off
 var globalconfig bool bNPCHighlighting;				// NPC highlighting when new convos
 var globalconfig bool bSubtitles;					// True if Conversation Subtitles are on
@@ -1490,8 +1491,8 @@ simulated function DrugEffects(float deltaTime)
 		//G-Flex: Also, adjust the FOV adjustment depending on default FOV
 		//G-Flex: and limit to 0.4 times normal viewing angle (30.0 for 4:3) instead of a constant 30
 		//G-Flex: It's not perfect but it'll prevent drug FOV changes from being
-		//G-Flex: too different depending on aspect ratio 
-		if (!(((DeusExWeapon(inHand) != None) && (DeusExWeapon(inHand).bZoomed)) || (inHand.IsA('Binoculars') && (inHand.bActive))))
+		//G-Flex: too different depending on aspect ratio
+		if ((inHand == None) || !(((DeusExWeapon(inHand) != None) && (DeusExWeapon(inHand).bZoomed)) || (inHand.IsA('Binoculars') && (inHand.bActive))))
 		{
 			if ( Level.NetMode == NM_Standalone )
 			{
@@ -12790,7 +12791,7 @@ function FailConsoleCheck()
 // ----------------------------------------------------------------------
 event Possess()
 {
-	//G-Flex: calculating the FoV here doesn't work because rootWindow doesn't have the right res
+	//G-Flex: calculating the FoV here doesn't work because rootWindow doesn't have the right res yet
 	//local float desiredVFOV;
 	//local float newDefaultFOV;
 	
@@ -12853,6 +12854,7 @@ defaultproperties
      RunSilentValue=1.000000
      ClotPeriod=30.000000
      strStartMap="01_NYC_UNATCOIsland"
+	 bAutoSave=True				// DX_Blaster: sets 'bAutoSave=True' in User.ini
      bObjectNames=True
      bNPCHighlighting=True
      bSubtitles=True

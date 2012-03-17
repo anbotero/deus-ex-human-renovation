@@ -45,7 +45,7 @@ simulated function Tick(float deltaTime)
 	local ScriptedPawn P;
 	local DeusExPlayer Player;
 	local Vector dist, HitLocation, HitNormal;
-	local float blinkRate, mult, skillDiff, levelDiff;
+	local float blinkRate, mult, skillDiff, skillMult, levelDiff;
 	local float proxRelevance;
 	local Pawn curPawn;
 	local bool pass;
@@ -85,8 +85,9 @@ simulated function Tick(float deltaTime)
 		{
 			if (bArmed)
 			{
-				//G-Flex: tone down Shifter difficulty penalty by half
-				//levelDiff = 0.5 + (1/(2 * Level.Game.Difficulty));
+				//G-Flex: use Shifter difficulty penalty for disarming
+				levelDiff = 1.000000 / Level.Game.Difficulty;
+
 				proxCheckTime += deltaTime;
 
 				// beep based on skill
@@ -133,7 +134,16 @@ simulated function Tick(float deltaTime)
 								dist = Player.Location - Location;
 								if (VSize(dist) < proxRadius)
 									if (skillTime == 0)
-										skillTime = FClamp((-14.0 - (6.0 * levelDiff)) * Player.SkillSystem.GetSkillLevelValue(class'SkillDemolition'), levelDiff, 10.0);
+									{
+										//G-Flex: in singleplayer, use player's CombatDifficulty since it's actually a float
+										//G-Flex: otherwise fractional difficulty gets lost and medium is treated as easy
+										if (Level.NetMode == NM_Standalone)
+											levelDiff = (1.000000 / Player.CombatDifficulty);
+										//G-Flex: also make demolitions skill give less of a bonus on higher difficulties
+										//skillMult = (Player.SkillSystem.GetSkillLevelValue(class'SkillDemolition') * (0.500 + 1.00/(2.00 * Level.Game.Difficulty)));
+										skillMult = (Player.SkillSystem.GetSkillLevelValue(class'SkillDemolition') * (0.500 + levelDiff/2.00));
+										skillTime = FClamp(((-14.0 - (6.0 * levelDiff)) * skillMult), levelDiff, 10.0);
+									}
 							}
 						}
 					}
@@ -185,7 +195,11 @@ simulated function Tick(float deltaTime)
 												if ( skillDiff >= 0.0 ) // Scale goes 1.0, 1.6, 2.8, 4.0
 													skillTime = FClamp( 1.0 + skillDiff * 6.0, 1.0, 2.5 );
 												else	// Scale goes 1.0, 1.4, 2.2, 3.0
-													skillTime = FClamp((-14.0 - (6.0 * levelDiff)) * Player.SkillSystem.GetSkillLevelValue(class'SkillDemolition'), levelDiff, 10.0);
+												{
+													//G-Flex: also make demolitions skill give less of a bonus on higher difficulties
+													skillMult = (Player.SkillSystem.GetSkillLevelValue(class'SkillDemolition') * (0.500 + levelDiff/2.00));
+													skillTime = FClamp(((-14.0 - (6.0 * levelDiff)) * skillMult), levelDiff, 10.0);
+												}
 											}
 										}
 									}
