@@ -20,25 +20,44 @@ enum ESkinColor
 	SC_Yellow
 };
 
-var() ESkinColor SkinColor;
+//G-Flex: try to get things to not change on map change
+var() travel ESkinColor SkinColor;
 var() bool bPreDamage;
 var bool bLeaking;
 var float radTimer;
 
 function BeginPlay()
 {
-	local string texstr;
-
 	Super.BeginPlay();
 
+	SetSkin();
+}
+
+//G-Flex: let's see if this works
+function TravelPostAccept()
+{
+	Super.TravelPostAccept();
+
+	SetSkin();
+}
+
+function SetSkin()
+{
+	local string texstr;
+	
+	//G-Flex: make most of these non-flammable
 	switch (SkinColor)
 	{
 		case SC_Biohazard:			texstr = "Barrel1Tex1";
+									bFlammable = False;
 									HitPoints = 12;
 									break;
 		case SC_Blue:				texstr = "Barrel1Tex2"; break;
+									bFlammable = False;
 		case SC_Brown:				texstr = "Barrel1Tex3"; break;
+									bFlammable = False;
 		case SC_Rusty:				texstr = "Barrel1Tex4"; break;
+									bFlammable = False;
 		case SC_Explosive:			texstr = "Barrel1Tex5";
 									bExplosive = True;
 									explosionDamage = 400;
@@ -55,9 +74,11 @@ function BeginPlay()
 									HitPoints = 8;
 									break;
 		case SC_Poison:				texstr = "Barrel1Tex8";
+									bFlammable = False;
 									HitPoints = 12;
 									break;
 		case SC_RadioActive:			texstr = "Barrel1Tex9";
+									bFlammable = False;
 									bInvincible = True;
 									LightType = LT_Steady;
 									LightRadius = 8;
@@ -72,6 +93,7 @@ function BeginPlay()
 									break;
 		case SC_Wood:				texstr = "Barrel1Tex10"; break;
 		case SC_Yellow:				texstr = "Barrel1Tex11"; break;
+									bFlammable = False;
 	}
 
 	if(Mesh == Default.Mesh)

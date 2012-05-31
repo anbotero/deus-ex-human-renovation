@@ -23,7 +23,8 @@ function bool Facelift(bool bOn)
 		return false;
 
 	if(bOn)
-		Skin = Texture(DynamicLoadObject("HDTPDecos.Skins.HDTPAlarmLightTex1", class'Texture'));
+		//G-Flex: let this fail
+		Skin = Texture(DynamicLoadObject("HDTPDecos.Skins.HDTPAlarmLightTex1", class'Texture', true));
 
 	switch (SkinColor)
 	{

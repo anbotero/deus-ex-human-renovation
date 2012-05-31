@@ -63,7 +63,8 @@ defaultproperties
      MaxSpeed=1000.000000
      Damage=150.000000
      MomentumTransfer=40000
-     SpawnSound=Sound'DeusExSounds.Weapons.GEPGunFire'
+	 //G-Flex: changed spawnsound
+     SpawnSound=Sound'DeusExSounds.Weapons.AssaultGunFire20mm'
      ImpactSound=Sound'DeusExSounds.Generic.MediumExplosion2'
      ExplosionDecal=Class'DeusEx.ScorchMark'
      Mesh=LodMesh'DeusExItems.HECannister20mm'

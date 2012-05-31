@@ -19,6 +19,8 @@ function bool Facelift(bool bOn)
 
 defaultproperties
 {
+     //G-Flex: so it doesn't burn as quickly, was default of 20
+     HitPoints=5
      ItemName="Paper"
      Mesh=LodMesh'DeusExDeco.TrashPaper'
      CollisionRadius=6.000000

@@ -906,8 +906,34 @@ function DrawTargetAugmentation(GC gc)
 				y = int(h * 0.5)-1;
 				aspectRatio = w / h;
 				
+				//G-Flex: try a totally new thing here
+				//G-Flex: tan(59.840457deg / 2) = 0.575495391899
+				//G-Flex: 1/tan(59.840457deg / 2) = 1.737633374786987
+				//G-Flex: 1536 uRot = 0.147262 rad = 8.437500 deg
+				//G-Flex: tan(8.437500deg) = 0.14833599
+				accuracyMultiplier = (h / 2.00) * 1.7376334; // multiply by tan(angle) to get pixels
+				
+				//G-Flex: ACCURACY TESTING
+				//G-Flex: 1920 uRot = 0.184078 rad = 10.546875 deg
+				//G-Flex: tan(10.546874973287553152448deg) = 0.186185
+				
+				//mult = FClamp(tan(weapon.currentAccuracy * 0.147262) * accuracyMultiplier,
+				//	corner, 0.14833599 * accuracyMultiplier);
+				mult = FClamp(tan(weapon.currentAccuracy * 0.184078) * accuracyMultiplier,
+					corner, 0.186185 * accuracyMultiplier);	
+				//Player.ClientMessage(weapon.currentAccuracy);
+				
+				
 				//G-Flex: unsimplified: accuracyMultiplier = 80 * ((4 / 3)/(aspectRatio));
-				accuracyMultiplier = 320 / (3 * aspectRatio);
+				//accuracyMultiplier = 320 / (3 * aspectRatio);
+				
+				//trying hopefully more accurate figure of 72 instead of 80
+				//G-Flex: unsimplified: accuracyMultiplier = 72 * ((4 / 3)/(aspectRatio));
+				////accuracyMultiplier = 288 / (3 * aspectRatio);
+				
+				//G-Flex: ACCURACY TESTING, use 108 instead of 72
+				//G-Flex: unsimplified: accuracyMultiplier = 108 * ((4 / 3)/(aspectRatio));
+				//accuracyMultiplier = 432 / (3 * aspectRatio);
 				//G-Flex: 5/4 is ~85.333, 4/3 is 80, 16/10 is ~66.666, 16/9 is 60
 				//G-Flex: should work for nonstandard ratios as well
 
@@ -915,8 +941,9 @@ function DrawTargetAugmentation(GC gc)
 				// mult = FClamp(weapon.currentAccuracy * 80.0 * (width/640.0), corner, 80.0);
 				//G-Flex: account for aspect ratio
 				//G-Flex: please note this only works if you use the proper FoV for the aspect ratio
-				mult = FClamp(weapon.currentAccuracy * accuracyMultiplier * (width / 640), 
-							  corner, accuracyMultiplier);	
+				//G-Flex: also max out the targeting reticule at 1.00 accuracy as in vanilla DX 640x480
+				////mult = FClamp(weapon.currentAccuracy * accuracyMultiplier * (width / 640), 
+				////			  corner, accuracyMultiplier * (width / 640));	
 
 				// make sure it's not too close to the center unless you have a perfect accuracy
 				//G-Flex: this does not adjust for aspect ratio or resolution

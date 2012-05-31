@@ -143,6 +143,8 @@ simulated function Tick(float deltaTime)
 										//skillMult = (Player.SkillSystem.GetSkillLevelValue(class'SkillDemolition') * (0.500 + 1.00/(2.00 * Level.Game.Difficulty)));
 										skillMult = (Player.SkillSystem.GetSkillLevelValue(class'SkillDemolition') * (0.500 + levelDiff/2.00));
 										skillTime = FClamp(((-14.0 - (6.0 * levelDiff)) * skillMult), levelDiff, 10.0);
+										//G-Flex: give the player at least a little bit of time
+										skillTime = FMax(skillTime,0.250000);
 									}
 							}
 						}
@@ -494,6 +496,14 @@ function PlayImpactSound()
 
 auto simulated state Flying
 {
+	//G-Flex: overloaded from DeusExProjectile so we don't blow up when we hit a corpse
+	simulated function ProcessTouch (Actor Other, Vector HitLocation)
+	{
+		if (Other.IsA('DeusExCarcass'))
+			return;
+		Super.ProcessTouch(Other, HitLocation);
+	}
+	
 	simulated function Explode(vector HitLocation, vector HitNormal)
 	{
 		local ShockRing ring;
@@ -558,9 +568,24 @@ auto simulated state Flying
 	{
 		local Rotator rot;
 		local float   volume;
-
+		
+		speed = VSize(Velocity);
+		
+		//G-Flex: try to damage the NPC if it's not a robot
+		if ((HitWall.IsA('ScriptedPawn')) && !(HitWall.IsA('Robot')) && (speed > 400))
+		{
+			ScriptedPawn(HitWall).TakeDamage(speed / 200.00, Instigator, location, 0.1 * Mass * Velocity, 'stomped');
+		}
+		
+		//G-Flex: try to alert NPCs a bit more
+		if (AISoundLevel > 0.0)
+		{
+			//G-Flex: having both does not seem to work well
+			//AISendEvent('LoudNoise', EAITYPE_Audio, volume, AISoundLevel*256);
+			AISendEvent('Projectile', EAITYPE_Audio, volume, AISoundLevel*256);
+		}
+		
 		Velocity = Elasticity*(( Velocity dot HitNormal ) * HitNormal * (-2.0) + Velocity);   // Reflect off Wall w/damping
-		speed = VSize(Velocity);	
 		if (bFirstHit && speed<400) 
 			bFirstHit=False;
 		RotationRate = RotRand(True);
@@ -571,8 +596,8 @@ auto simulated state Flying
 
 			// I know this is a little cheesy, but certain grenade types should
 			// not alert AIs unless they are really really close - CNN
-			if (AISoundLevel > 0.0)
-				AISendEvent('LoudNoise', EAITYPE_Audio, volume, AISoundLevel*256);
+			//if (AISoundLevel > 0.0)
+			//	AISendEvent('LoudNoise', EAITYPE_Audio, volume, AISoundLevel*256);
 			SetPhysics(PHYS_None, HitWall);
 			if (Physics == PHYS_None)
 			{
@@ -645,9 +670,6 @@ simulated function BeginPlay()
 		bStuck = True;
 	}
 }
-
-
-																							
 
 defaultproperties
 {

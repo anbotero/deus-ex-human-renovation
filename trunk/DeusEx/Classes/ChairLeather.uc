@@ -20,11 +20,12 @@ function BeginPlay()
 
 	switch (SkinColor)
 	{
-		case SC_Black:		Skin = Texture'ChairLeatherTex1'; break;
-		case SC_Blue:		Skin = Texture'ChairLeatherTex1'; break;
-		case SC_Brown:		Skin = Texture'ChairLeatherTex1'; break;
-		case SC_LitGray:	Skin = Texture'ChairLeatherTex1'; break;
-		case SC_Tan:		Skin = Texture'ChairLeatherTex1'; break;
+		//G-Flex: try to get the other textures working?
+		case SC_Black:		Skin = Texture'ChairLeatherTex1'; bFlammable = false; break;
+		case SC_Blue:		Skin = Texture'ChairLeatherTex2'; break;
+		case SC_Brown:		Skin = Texture'ChairLeatherTex3'; break;
+		case SC_LitGray:	Skin = Texture'ChairLeatherTex4'; break;
+		case SC_Tan:		Skin = Texture'ChairLeatherTex5'; break;
 	}
 }
 

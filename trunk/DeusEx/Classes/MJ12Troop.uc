@@ -3,6 +3,20 @@
 //=============================================================================
 class MJ12Troop extends HumanMilitary;
 
+function AdjustProperties()
+{
+	//1.600000 instead of 2.000000
+	SurprisePeriod *= 0.800000;
+	//0.400000 instead of 0.500000
+	attackPeriod *= 0.800000;
+	//3.600000 instead of 4.500000
+	maxAttackPeriod *= 0.800000;
+	//0.008000 instead of 0.010000
+	VisibilityThreshold *= 0.800000;
+	//0.120000 instead of 0.150000
+	HearingThreshold *= 0.800000;
+}
+
 defaultproperties
 {
      CarcassType=Class'DeusEx.MJ12TroopCarcass'

@@ -5,6 +5,7 @@ class WHBookstandLibrary extends WashingtonDecoration;
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      ItemName="Bookstand"
      Mesh=LodMesh'DeusExDeco.WHBookstandLibrary'

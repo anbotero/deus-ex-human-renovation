@@ -22,8 +22,8 @@ function bool Facelift(bool bOn)
 
 	switch (SkinColor)
 	{
-		case SC_GrayLeather:		texstr = "OfficeChairTex1"; break;
-		case SC_BrownLeather:		texstr = "OfficeChairTex2"; break;
+		case SC_GrayLeather:	texstr = "OfficeChairTex1"; break;
+		case SC_BrownLeather:	texstr = "OfficeChairTex2"; break;
 		case SC_BrownCloth:		texstr = "OfficeChairTex3"; break;
 		case SC_GrayCloth:		texstr = "OfficeChairTex4"; break;
 	}
@@ -50,8 +50,8 @@ function BeginPlay()
 
 	switch (SkinColor)
 	{
-		case SC_GrayLeather:		texstr = "OfficeChairTex1"; break;
-		case SC_BrownLeather:		texstr = "OfficeChairTex2"; break;
+		case SC_GrayLeather:		texstr = "OfficeChairTex1"; bFlammable = false; break;
+		case SC_BrownLeather:		texstr = "OfficeChairTex2"; bFlammable = false; break;
 		case SC_BrownCloth:		texstr = "OfficeChairTex3"; break;
 		case SC_GrayCloth:		texstr = "OfficeChairTex4"; break;
 	}

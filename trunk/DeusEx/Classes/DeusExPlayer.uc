@@ -219,7 +219,8 @@ var travel Bool bIgnoreNextShowMenu;
 var String NextMap;
 
 // Configuration Variables
-var globalconfig bool bAutoSave;					// DX_Blaster: new Autosave option on/off
+//G-Flex: disable autosave until the crash bug can be handled
+//var globalconfig bool bAutoSave;					// DX_Blaster: new Autosave option on/off
 var globalconfig bool bObjectNames;					// Object names on/off
 var globalconfig bool bNPCHighlighting;				// NPC highlighting when new convos
 var globalconfig bool bSubtitles;					// True if Conversation Subtitles are on
@@ -1522,7 +1523,7 @@ simulated function DrugEffects(float deltaTime)
 				root.hud.SetBackground(None);
 				root.hud.SetBackgroundStyle(DSTY_Normal);
 				//G-Flex: Don't attempt to reset the FOV if we're scoped
-				if (!(((DeusExWeapon(inHand) != None) && (DeusExWeapon(inHand).bZoomed)) || (inHand.IsA('Binoculars') && (inHand.bActive))))
+				if ((inHand == None) || !(((DeusExWeapon(inHand) != None) && (DeusExWeapon(inHand).bZoomed)) || (inHand.IsA('Binoculars') && (inHand.bActive))))
 					DesiredFOV = Default.DesiredFOV;
 			}
 		}
@@ -3053,7 +3054,7 @@ function Landed(vector HitNormal)
 	//G-Flex: Base fall damage multipliers also increased (and safe-for-leg fall height decreased) slightly)
     	local vector legLocation;
 	local int augLevel, skillLevel;
-	local float augReduceMult, skillReduce, dmg;
+	local float augReduceMult, skillReduceMult, skillReduce, dmg;
 
 	//Note - physics changes type to PHYS_Walking by default for landed pawns
 	PlayLanded(Velocity.Z);
@@ -3066,8 +3067,10 @@ function Landed(vector HitNormal)
 				skillReduce = 0.0;
 				if (SkillSystem != None)
 				{
-					skillReduce = SkillSystem.GetSkillLevel(class'SkillSwimming') * 10;
-
+					skillLevel = SkillSystem.GetSkillLevel(class'SkillSwimming');
+					skillReduceMult = 10;
+						
+					skillReduce = SkillSystem.GetSkillLevel(class'SkillSwimming') * skillReduceMult;
 				}
 				//G-Flex:speed aug reduces damage by 12.5% per level, then 2 points per level
 				augLevel = -1;
@@ -3385,12 +3388,30 @@ function HandleWalking()
 function DoJump( optional float F )
 {
 	local DeusExWeapon w;
-	local float scaleFactor, augLevel;
+	local float scaleFactor, augLevel, muscleValue, muscleDiv, maxMass;
 
-	if ((CarriedDecoration != None) && (CarriedDecoration.Mass > 20))
-		return;
+	//if ((CarriedDecoration != None) && (CarriedDecoration.Mass > 20))
+	//	return;
+	if (CarriedDecoration != None)
+	{	
+		//G-Flex: modified so the muscle aug lets you jump while carrying heavier junk
+		//G-Flex: heavier-than-normal junk suffers a penalty
+		maxMass = 20;
+		if (AugmentationSystem != None)
+		{
+			muscleValue = AugmentationSystem.GetAugLevelValue(class'AugMuscle');
+			if (muscleValue != -1.0)
+				maxMass *= Square(muscleValue)*1.25;
+		}
+		if (CarriedDecoration.Mass > maxMass)
+			return;
+		if (CarriedDecoration.Mass > 20)
+			muscleDiv = ((CarriedDecoration.Mass-20)/CarriedDecoration.Mass) / (1.00+(MuscleValue-1.0)*2.50);
+	}
 	else if (bForceDuck || IsLeaning())
 		return;
+	else
+		muscleDiv = 0.00;
 
 	if (Physics == PHYS_Walking)
 	{
@@ -3401,6 +3422,8 @@ function DoJump( optional float F )
 		PlayInAir();
 
 		Velocity.Z = JumpZ;
+		if (muscleDiv > 0.00)
+			Velocity.Z -= Velocity.Z * muscleDiv;
 
 		if ( Level.NetMode != NM_Standalone )
 		{
@@ -3652,14 +3675,14 @@ state PlayerWalking
 	// lets us affect the player's movement
 	function ProcessMove ( float DeltaTime, vector newAccel, eDodgeDir DodgeMove, rotator DeltaRot)
 	{
-		local int newSpeed, defSpeed;
+		local int newSpeed, defSpeed, i;
 		local name mat;
 		local vector HitLocation, HitNormal, checkpoint, downcheck;
 		local Actor HitActor, HitActorDown;
 		local bool bCantStandUp;
 		local Vector loc, traceSize;
 		local float alpha, maxLeanDist;
-		local float legTotal, weapSkill;
+		local float legTotal, weapSkill, augValue;
 
 		// if the spy drone augmentation is active
 		if (bSpyDroneActive)
@@ -3757,7 +3780,8 @@ state PlayerWalking
 		// their legs are blown off
 		if ((HealthLegLeft < 1) && (HealthLegRight < 1))
 		{
-			newSpeed = defSpeed * 0.8;
+			//G-Flex: 70% instead of 80% to match above penalties
+			newSpeed = defSpeed * 0.7;
 			bIsWalking = True;
 			bForceDuck = True;
 		}
@@ -3782,19 +3806,54 @@ state PlayerWalking
 */
 		// slow the player down if he's carrying something heavy
 		// Like a DEAD BODY!  AHHHHHH!!!
+		//G-Flex: let the muscle aug help with decorations/corpses
 		if (CarriedDecoration != None)
 		{
-			newSpeed -= CarriedDecoration.Mass * 2;
+			augValue = 1.0;
+			if (AugmentationSystem != None)
+			{
+				augValue = AugmentationSystem.GetAugLevelValue(class'AugMuscle');
+				if (augValue == -1.0)
+					augValue = 1.0;
+			}
+			newSpeed -= CarriedDecoration.Mass * (2.00 / (1.0+((augValue - 1)*2.0)));
 		}
 		// don't slow the player down if he's skilled at the corresponding weapon skill  
-		else if ((DeusExWeapon(Weapon) != None) && (Weapon.Mass > 30) && (DeusExWeapon(Weapon).GetWeaponSkill() > -0.25) && (Level.NetMode==NM_Standalone))
+		//G-Flex: make this a bit more complicated and no longer negate above penalties
+		//else if ((DeusExWeapon(Weapon) != None) && (Weapon.Mass > 30) && (DeusExWeapon(Weapon).GetWeaponSkill() > -0.25) && (Level.NetMode==NM_Standalone))
+		//{
+		//	bIsWalking = True;
+		//	newSpeed = defSpeed;
+		//}
+		else if ((DeusExWeapon(Weapon) != None) && (Weapon.Mass > 30) && (Level.NetMode==NM_Standalone))
 		{
-			bIsWalking = True;
-			newSpeed = defSpeed;
+			//G-Flex: this is far from how I'd prefer to do this, but whatever
+			weapSkill = DeusExWeapon(Weapon).GetWeaponSkill();
+			if (weapSkill ~= 0.0)
+			{	//G-Flex: untrained, always walking and extra slow
+				bIsWalking = true;
+				newSpeed *= 1.000/((0.030*(Weapon.Mass-30.000))+1.000);
+			}
+			else if (weapSkill ~= -0.1)
+			{	//G-Flex: trained, always walking
+				bIsWalking = true;
+			}
+			else if (weapSkill ~= -0.25)
+			{	//G-Flex: advanced, normal walking and slowed running
+				if (!bIsWalking)
+					newSpeed *= 1.000/((0.015*(Weapon.Mass-30.000))+1.000);
+			}
 		}
 		else if ((inHand != None) && inHand.IsA('POVCorpse'))
 		{
-			newSpeed -= inHand.Mass * 3;
+			augValue = 1.0;
+			if (AugmentationSystem != None)
+			{
+				augValue = AugmentationSystem.GetAugLevelValue(class'AugMuscle');
+				if (augValue == -1.0)
+					augValue = 1.0;
+			}
+			newSpeed -= inHand.Mass * (3.00 / (1.0+((augValue - 1)*2.0)));
 		}
 
 		// Multiplayer movement adjusters
@@ -3820,11 +3879,11 @@ state PlayerWalking
 		}
 
 		// if we are moving really slow, force us to walking
-		if ((newSpeed <= defSpeed / 3) && !bForceDuck)
-		{
-			bIsWalking = True;
-			newSpeed = defSpeed;
-		}
+		//if ((newSpeed <= defSpeed / 3) && !bForceDuck)
+		//{
+		//	bIsWalking = True;
+		//	newSpeed = defSpeed;
+		//}
 
 		// if we are moving backwards, we should move slower
       // DEUS_EX AMSD Turns out this wasn't working right in multiplayer, I have a fix
@@ -5914,18 +5973,20 @@ exec function ToggleLaser()
 
 // check to see if the player can lift a certain decoration taking
 // into account his muscle augs
+//G-Flex: change this to make higher levels of AugMuscle matter more
 function bool CanBeLifted(Decoration deco)
 {
-	local int augLevel, augMult;
+	local float augValue, augMult;
 	local float maxLift;
 
-	maxLift = 50;
+	//G-Flex: was 50
+	maxLift = 55;
 	if (AugmentationSystem != None)
 	{
-		augLevel = AugmentationSystem.GetClassLevel(class'AugMuscle');
+		augValue = AugmentationSystem.GetAugLevelValue(class'AugMuscle');
 		augMult = 1;
-		if (augLevel >= 0)
-			augMult = augLevel+2;
+		if (augValue >= 0)
+			augMult = Square(augValue)*1.25;
 		maxLift *= augMult;
 	}
 
@@ -6019,7 +6080,7 @@ function PutCarriedDecorationInHand()
 function DropDecoration()
 {
 	local Vector X, Y, Z, dropVect, origLoc, HitLocation, HitNormal, extent;
-	local float velscale, size, mult;
+	local float velscale, size, mult, weightMult, effectiveMass;
 	local bool bSuccess;
 	local Actor hitActor;
 
@@ -6044,23 +6105,42 @@ function DropDecoration()
 		}
 		else
 		{
+			weightMult = 0;
+			effectiveMass = CarriedDecoration.Mass;
 			// throw velocity is based on augmentation
 			if (AugmentationSystem != None)
 			{
 				mult = AugmentationSystem.GetAugLevelValue(class'AugMuscle');
-				if (mult == -1.0)
+				if (mult ~= -1.0)
 					mult = 1.0;
+				else
+				{
+					mult *= 1.333;
+					//G-Flex: adjust mass a bit for the aug, similar scaling as CanBeLifted
+					//G-Flex: avoid a stupid divide-by-zero error here
+					weightMult = 6.00 / (AugmentationSystem.GetClassLevel(class'AugMuscle') + 1);
+					//mult = (1.0 + mult)/2.0;
+				}
 			}
+			//G-Flex: heavier objects get weight removed with the aug
+			//G-Flex: the heavier the object, the greater percentage that is removed
+			if ((effectiveMass > 40) && (weightMult > 0))
+				//G-Flex: this works, okay, just trust me
+				effectiveMass -= effectiveMass * 6.00 * (1-1/(sqrt(40+(effectiveMass-40)/(weightMult)+35-39))-0.83333);
 
 			//== Y|y: We shouldn't throw items due to being dropped whilst in a conversation, because that tends to kill or PO who we're conversing with
 			if (IsLeaning() || IsInState('Conversation'))
 				CarriedDecoration.Velocity = vect(0,0,0);
 			else
+				//CarriedDecoration.Velocity = Vector(ViewRotation) * mult * 500 + vect(0,0,220) + 40 * VRand();
 				CarriedDecoration.Velocity = Vector(ViewRotation) * mult * 500 + vect(0,0,220) + 40 * VRand();
 
 			// scale it based on the mass
-			velscale = FClamp(CarriedDecoration.Mass / 20.0, 1.0, 40.0);
+			velscale = FClamp((effectiveMass) / 20.0, 1.0, 40.0);
 
+			//ClientMessage("EffectiveMass: " $ EffectiveMass);
+			//ClientMessage("Mult: " $ mult);
+			//ClientMessage("weightMult: " $ weightMult);
 			CarriedDecoration.Velocity /= velscale;
 			dropVect = Location + (CarriedDecoration.CollisionRadius + CollisionRadius + 4) * X;
 			dropVect.Z += BaseEyeHeight;
@@ -7896,6 +7976,70 @@ exec function GoCatGo()
 			guy.bFearAlarm = False;
 			guy.bFearProjectiles = False;
 		}	
+	}
+}
+
+// ----------------------------------------------------------------------
+// WhereIsYevgeni()
+//
+// Yevgeni, Yevgeni, where is Yevgeni!?
+// ----------------------------------------------------------------------
+
+exec function WhereIsYevgeni()
+{
+	local ScriptedPawn dude;
+	local float nameChoice;
+	local string newName;
+	
+	if (!bCheatsEnabled)
+		return;
+
+	foreach RadiusActors(class'ScriptedPawn', dude, 5000)
+	{
+		if ((dude.IsA('HumanCivilian') || dude.IsA('HumanMilitary')) && (dude.UnfamiliarName != "Russian Sailor"))
+		{
+			dude.Texture = None;
+			dude.Mesh = LodMesh'DeusExCharacters.GM_Suit';
+			dude.MultiSkins[0] = Texture'DeusExCharacters.Skins.SailorTex0';
+			dude.MultiSkins[1] = Texture'DeusExCharacters.Skins.SailorTex2';
+			dude.MultiSkins[2] = Texture'DeusExCharacters.Skins.SailorTex0';
+			dude.MultiSkins[3] = Texture'DeusExCharacters.Skins.SailorTex1';
+			dude.MultiSkins[4] = Texture'DeusExCharacters.Skins.SailorTex1';
+			dude.MultiSkins[5] = Texture'DeusExItems.Skins.GrayMaskTex';
+			dude.MultiSkins[6] = Texture'DeusExItems.Skins.BlackMaskTex';
+			dude.MultiSkins[7] = Texture'DeusExCharacters.Skins.SailorTex3';
+			dude.UnfamiliarName = "Russian Sailor";
+			
+			nameChoice = FRand();
+			if (nameChoice < 0.245)
+				newName = "Dimitri";
+			else if (nameChoice < 0.49)
+				newName = "Ivan";
+			else if (nameChoice < 0.73.5)
+				newName = "Boris";
+			else if (nameChoice < 0.98)
+				newName = "Vladimir";
+			else
+			{
+				newName = "Yevgeni";
+				dude.DrawScale *= 1.25;
+				dude.BaseEyeHeight *= 1.25;
+				dude.Mass *= 1.95; // 1.25^3
+				dude.Health *= 3.0;
+				dude.HealthHead *= 3.0;
+				dude.HealthTorso *= 3.0;
+				dude.HealthArmRight *= 3.0;
+				dude.HealthArmLeft *= 3.0;
+				dude.HealthLegRight *= 3.0;
+				dude.HealthLegLeft *= 3.0;
+				dude.bCanSit = false;
+				dude.bCanCrouch = false;
+				dude.SetCollisionSize(dude.Collisionradius * 1.25, dude.CollisionHeight * 1.25);
+			}
+			
+			dude.UnfamiliarName = "Russian Sailor";
+			dude.FamiliarName = newName;
+		}
 	}
 }
 
@@ -12175,6 +12319,33 @@ exec function IAmWarren()
 	}
 }
 
+//G-Flex: debug commands
+
+exec function GetAI()
+{
+	local Actor            hitActor;
+	local Vector           hitLocation, hitNormal;
+	local Vector           position, line;
+	local ScriptedPawn     hitPawn;
+
+	if (!bCheatsEnabled)
+		return;
+
+	position    = Location;
+	position.Z += BaseEyeHeight;
+	line        = Vector(ViewRotation) * 4000;
+
+	hitActor = Trace(hitLocation, hitNormal, position+line, position, true);
+	hitPawn = ScriptedPawn(hitActor);
+	if (hitPawn != None)
+	{
+		ClientMessage("looking for weapon: " $ hitPawn.bLookingForWeapon);
+		ClientMessage("looking for carcass: " $ hitPawn.bLookingForCarcass);
+		ClientMessage("visibility of player: " $ hitPawn.AICanSee(self, hitPawn.ComputeActorVisibility(self), true, true, true, true));
+		ClientMessage("CanSee player: " $ hitPawn.CanSee(self));
+	}
+}
+
 // ----------------------------------------------------------------------
 // UsingChargedPickup
 // ----------------------------------------------------------------------
@@ -12854,7 +13025,7 @@ defaultproperties
      RunSilentValue=1.000000
      ClotPeriod=30.000000
      strStartMap="01_NYC_UNATCOIsland"
-	 bAutoSave=True				// DX_Blaster: sets 'bAutoSave=True' in User.ini
+	 //bAutoSave=True				// DX_Blaster: sets 'bAutoSave=True' in User.ini
      bObjectNames=True
      bNPCHighlighting=True
      bSubtitles=True

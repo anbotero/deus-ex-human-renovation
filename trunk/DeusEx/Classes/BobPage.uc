@@ -3,6 +3,22 @@
 //=============================================================================
 class BobPage extends HumanMilitary;
 
+function AdjustProperties()
+{
+	//G-Flex: as if it matters
+
+	//1.600000 instead of 2.000000
+	SurprisePeriod *= 0.800000;
+	//0.400000 instead of 0.500000
+	attackPeriod *= 0.800000;
+	//3.600000 instead of 4.500000
+	maxAttackPeriod *= 0.800000;
+	//0.007000 instead of 0.010000
+	VisibilityThreshold *= 0.700000;
+	//0.195000 instead of 0.150000
+	HearingThreshold *= 0.700000;
+}
+
 function float ModifyDamage(int Damage, Pawn instigatedBy, Vector hitLocation,
                             Vector offset, Name damageType)
 {

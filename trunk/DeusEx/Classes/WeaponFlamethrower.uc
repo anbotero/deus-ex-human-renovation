@@ -39,16 +39,18 @@ defaultproperties
      bAutomatic=True
      ShotTime=0.100000
      reloadTime=5.500000
-     HitDamage=2
-     maxRange=320
-     AccurateRange=320
+	 //G-Flex: was 2
+     HitDamage=3
+	 //G-Flex: more closely matches how far the flames will go
+     maxRange=400
+     AccurateRange=400
      BaseAccuracy=0.900000
      bHasMuzzleFlash=False
      mpReloadTime=0.500000
      mpHitDamage=5
      mpBaseAccuracy=0.900000
-     mpAccurateRange=320
-     mpMaxRange=320
+     mpAccurateRange=400
+     mpMaxRange=400
      mpReloadCount=100
      bCanHaveModAccurateRange=True
      bCanHaveModReloadTime=True

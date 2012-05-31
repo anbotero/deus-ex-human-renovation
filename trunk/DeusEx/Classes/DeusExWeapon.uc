@@ -130,6 +130,8 @@ var float ShakeMagnitudeToward;
 //var float LaserOffPercent;
 var float LaserPitchProportion;
 var float LaserYawProportion;
+//G-Flex: calculated once because square roots are expensive
+var float DiffAccuracyMult;
 
 var float LaserYaw;								// Yaw of the Laser emitter, relative to the gun
 var float LaserPitch;							// Pitch of the Laser emitter, relative to the gun
@@ -296,7 +298,12 @@ function TravelPostAccept()
 		// since we can't "var travel class" (AmmoName and ProjectileClass)
 		if (AmmoType != None)
 		{
-			FireSound = None;
+			//G-Flex: set to default FireSound instead, which should be None
+			//G-Flex: because projectile sounds are handled by the projectile itself
+			if (Default.bInstantHit)
+				FireSound = None;
+			else
+				FireSound = Default.FireSound;
 			for (i=0; i<ArrayCount(AmmoNames); i++)
 			{
 				if (AmmoNames[i] == AmmoName)
@@ -373,7 +380,6 @@ function bool HandlePickupQuery(Inventory Item)
 	local bool bResult;
 	local class<Ammo> defAmmoClass;
 	local Ammo defAmmo;
-	
 	// make sure that if you pick up a modded weapon that you
 	// already have, you get the mods
 	W = DeusExWeapon(Item);
@@ -410,6 +416,9 @@ function bool HandlePickupQuery(Inventory Item)
 			ReloadCount = W.ReloadCount;
 		if (W.AccurateRange > AccurateRange)
 			AccurateRange = W.AccurateRange;
+		//G-Flex: also maxrange now that the mod affects it
+		if (W.MaxRange > MaxRange)
+			MaxRange = W.MaxRange;
 
 		// these are negative
 		if (W.BaseAccuracy < BaseAccuracy)
@@ -457,6 +466,36 @@ function bool HandlePickupQuery(Inventory Item)
 		player.UpdateBeltText(Self);
 
 	return bResult;
+}
+
+//G-Flex: make this a function here since we use this in multiple places
+//G-Flex: for weapons nabbed from corpses, dropped by enemies, or expelled from either upon fragging
+function float SetDroppedAmmoCount()
+{
+	local float amount;
+	
+	// Any weapons have their ammo set to a random number of rounds (1-4)
+	// unless it's a grenade, in which case we only want to dole out one.
+	// DEUS_EX AMSD In multiplayer, give everything away.
+	// Grenades and LAMs always pickup 1
+	if (IsA('WeaponNanoVirusGrenade') || IsA('WeaponGasGrenade') || IsA('WeaponEMPGrenade') || IsA('WeaponLAM'))
+		amount = 1;
+	else if (Level.NetMode == NM_Standalone) //== Y|y: CHANGE AMMO PICKUP AMOUNTS HERE
+	{
+		// W.PickupAmmoCount = Rand(4) + 1;
+		//G-Flex: Always still pick up 1-4 if default ammo pickup <= 8
+		//G-Flex: But pick up between 1 and half default pickup otherwise
+		if (Default.PickupAmmoCount == 0)
+			amount = 0;
+		else if (Default.PickupAmmoCount <= 8)
+			amount = Rand(4) + 1;
+		else
+			amount = 1 + Rand(Default.PickupAmmoCount) / 2;
+	}
+	
+	PickupAmmoCount = amount;
+	
+	return amount;
 }
 
 function BringUp()
@@ -537,6 +576,7 @@ function ReloadNewAmmo()
 //
 // Note we need to control what's calling this...but I'll get rid of the access nones for now
 //
+//G-Flex: Modified to bypass targeting augmentation as in Shifter
 simulated function float GetWeaponSkill()
 {
 	local DeusExPlayer player;
@@ -555,12 +595,14 @@ simulated function float GetWeaponSkill()
 				//G-Flex: kludge so targeting aug doesn't affect melee
 				//G-Flex: as if the DTS needs the extra 20% damage
 				//G-Flex: in theory this affects extremely short-range guns too, but that's okay
-				if (MaxRange > 99)
+				//== Y|y: Multiplayer only
+				if((Level.NetMode != NM_Standalone) && (Default.MaxRange > 99))
 				{
+					// get the target augmentation
 					value = player.AugmentationSystem.GetAugLevelValue(class'AugTarget');
-					if (value == -1.0)
-						value = 0;
 				}
+				if (value == -1.0)
+					value = 0;
 
 				// get the skill
 				value += player.SkillSystem.GetSkillLevelValue(GoverningSkill);
@@ -582,17 +624,25 @@ simulated function float CalculateAccuracy()
 	local DeusExPlayer player;
 
 	accuracy = BaseAccuracy;		// start with the weapon's base accuracy
-   weapskill = GetWeaponSkill();
+	weapskill = GetWeaponSkill();
 
 	player = DeusExPlayer(Owner);
 	
 	diff = DeusExPlayer(GetPlayerPawn()).combatDifficulty;
+
 	if (player != None)
 	{
 		// check the player's skill
 		// 0.0 = dead on, 1.0 = way off
 		accuracy += weapskill;
+		
+		//G-Flex: apply targeting aug; it's already applied in MP as part of weapskill
+		if(player.AugmentationSystem != None && Level.NetMode == NM_Standalone)
+			div = player.AugmentationSystem.GetAugLevelValue(class'AugTarget');
 
+		if(div != -1.0)
+			accuracy += div;
+			
 		// get the health values for the player
 		HealthArmRight = player.HealthArmRight;
 		HealthArmLeft  = player.HealthArmLeft;
@@ -607,7 +657,7 @@ simulated function float CalculateAccuracy()
 		// update the weapon's accuracy with the ScriptedPawn's BaseAccuracy
 		// (BaseAccuracy uses higher values for less accuracy, hence we add)
 		accuracy += ScriptedPawn(Owner).BaseAccuracy;
-
+		
 		// get the health values for the NPC
 		HealthArmRight = ScriptedPawn(Owner).HealthArmRight;
 		HealthArmLeft  = ScriptedPawn(Owner).HealthArmLeft;
@@ -657,36 +707,55 @@ simulated function float CalculateAccuracy()
 		if (standingTimer > 0)
 		{
 			// higher skill makes standing bonus greater
-			//G-Flex: weapskill range is [0.0,-0.7] (max skill+aug)
 			//div = Max(15.0 + 29.0 * weapskill, 0.0);
-			//G-Flex: fix integer rounding and divide-by-zero problem
-			div = FMax(15.0 + 29.0 * weapskill, 1.5);
+			//G-Flex: fix integer rounding and divide-by-zero problem, tweak balance a little
+			div = FMax(15.0 + 29.0 * weapskill, 3.0);
 			// NPCs get a decreased standing bonus on lower difficulty levels
 			if(player == None)
 				div *= 4.0/diff;
-			accuracy -= FClamp(standingTimer/div, 0.0, 0.6);
+			accuracy -= FClamp(standingTimer/div, 0.0, 0.5);
 			// don't go too low
 			if ((accuracy < 0.1) && (tempacc > 0.1))
 				accuracy = 0.1;
 		}
 	}
 
-	// make sure we don't go negative
+   if (Level.NetMode != NM_Standalone)
+   {
+      if (accuracy < MinWeaponAcc)
+         accuracy = MinWeaponAcc;
+   }
+   else
+   {
+      //G-Flex: give NPCs a little bit of an accuracy bonus at higher difficulty in SP
+      if (ScriptedPawn(Owner) != None)
+      {
+		 if (diff > 3.00)
+			diff -= 1.00;
+		 //G-Flex: easy: 0.0000, medium: 0.0100, hard: 0.0200, realistic: 0.0400
+		 accuracy -= ((diff - 1.00) / 50.00);
+		 //G-Flex: easy: 1.0000, medium: 0.9175, hard: 0.8579, realistic: 0.7143
+		 accuracy *= (2.50 / (1.50+ScriptedPawn(Owner).playerDiffRoot));
+      }
+	  // Let's do scope accuracy over here
+	  //G-Flex: switch order of things a bit to penalize sniper rifles less
+	  //G-Flex: also, don't penalize enemies for having scopes
+	  else if (player != None)
+	  {
+		 if(bHasScope && !bZoomed)
+		 {
+		    if(Default.bHasScope)
+				accuracy += 0.1;
+			accuracy = FMax(accuracy, 0.05);
+		 }
+	  }
+   }
+   
+   // make sure we don't go negative
 	if (accuracy < 0.0)
 		accuracy = 0.0;
 
-   if (Level.NetMode != NM_Standalone)
-      if (accuracy < MinWeaponAcc)
-         accuracy = MinWeaponAcc;
-
-	// Let's do scope accuracy over here
-	//G-Flex: switch order of things a bit to penalize sniper rifles less
-	if(bHasScope && !bZoomed)
-	{
-		if(Default.bHasScope)
-			accuracy += 0.1;
-		accuracy = FMax(accuracy, 0.05);
-	}
+	
 	return accuracy;
 }
 
@@ -715,7 +784,8 @@ function bool LoadAmmo(int ammoNum)
 		if (newAmmoClass != AmmoName)
 		{
 			newAmmo = Ammo(P.FindInventoryType(newAmmoClass));
-			if (newAmmo == None)
+			//G-Flex: fix this up so it won't try to switch us to ammo we've run out of
+			if ((newAmmo == None) || (newAmmo.AmmoAmount <= 0))
 			{
 				P.ClientMessage(Sprintf(msgOutOf, newAmmoClass.Default.ItemName));
 				return False;
@@ -754,7 +824,15 @@ function bool LoadAmmo(int ammoNum)
 					ReloadTime = 2.0 * (1.0+ModReloadTime);
 				else
 					ReloadTime = 2.0;
-				FireSound = None;		// handled by the projectile
+				//FireSound = None;		// handled by the projectile
+				//G-Flex: set to default FireSound instead, which *should* be None
+				//G-Flex: because projectile sounds are handled by the projectile itself
+				//G-Flex: except for ones that fire multiple projectiles at once (e.g. flamethrower, plasma rifle)
+				//G-Flex: but use no sound at all for ones that would have an inappropriate bullet-shooting noise
+				if (Default.bInstantHit)
+					FireSound = None;
+				else
+					FireSound = Default.FireSound;
 				ProjectileClass = ProjectileNames[ammoNum];
 				ProjectileSpeed = ProjectileClass.Default.Speed;
 			}
@@ -764,12 +842,13 @@ function bool LoadAmmo(int ammoNum)
 
 			// AlexB had a new sound for 20mm but there's no mechanism for playing alternate sounds per ammo type
 			// Same for WP rocket
-			if ( Ammo20mm(newAmmo) != None )
+			//G-Flex: should be handled by the projectile
+			/*if ( Ammo20mm(newAmmo) != None )
 				FireSound=Sound'AssaultGunFire20mm';
 			else if ( AmmoRocketWP(newAmmo) != None )
 				FireSound=Sound'GEPGunFireWP';
 			else if ( AmmoRocket(newAmmo) != None )
-				FireSound=Sound'GEPGunFire';
+				FireSound=Sound'GEPGunFire';*/
 
 			if ( Level.NetMode != NM_Standalone )
 				SetClientAmmoParams( bInstantHit, bAutomatic, ShotTime, FireSound, ProjectileClass, ProjectileSpeed );
@@ -1405,14 +1484,16 @@ simulated function Tick(float deltaTime)
 	//== Y|y: but only to a point, unless we want to build up a "credit" of standing still.  Thanks to Lork
 	if (velMagnitude < 10)
 	{
-		//G-Flex: don't go as high; 10.0 here was 15.0 
+		//G-Flex: don't go as high; 10.0 here was 15.0
+		//G-Flex: and now go even less high, 8.0
 		//G-Flex: also increase timer 120% as fast as normal, and don't increase if reloading
-		if((standingTimer < 10.0) && !IsInState('Reload'))
+		if((standingTimer < 8.0) && !IsInState('Reload'))
 			standingTimer += (1.20 * deltaTime);
 	}
 	else	// otherwise, decrease it slowly based on velocity
 	{
 		//G-Flex: decrease by 2/3 former value
+		//G-Flex: make that 1/2
 		standingTimer = FMax(0.00, standingTimer - 0.02*deltaTime*velMagnitude);
 	}
 
@@ -1424,7 +1505,9 @@ simulated function Tick(float deltaTime)
 		else if (bLasing)
 			//G-Flex: this value is used to match the edge of the firing cone,
 			//G-Flex: so don't change it unless you know what you're doing
-			accunit=1536;
+			//G-Flex: ACCURACY TESTING
+			//accunit=1536;
+			accunit=1920;
 
 		// shake our view to simulate poor aiming
 		if (ShakeTimer > 0.25)
@@ -1449,7 +1532,7 @@ simulated function Tick(float deltaTime)
 				//gravitate ShakeMagnitude toward ShakeMagnitudeToward
 				ShakeMagnitudeToward = 900 + (0.75 * Rand(accunit));
 				//how much ShakeAngle changes per second in angle units
-				//between -360 and 360 degrees
+				//between -270 and 270 degrees
 				ShakeAngleAccel = (FRand() * 3 * pi) - (1.5 * pi);
 				//G-Flex: laser varies less often
 				ShakeTimer -= 0.50 + (Rand(21) / 100.00);
@@ -1486,12 +1569,19 @@ simulated function Tick(float deltaTime)
 				LaserPitch += ShakePitch * deltaTime;
 				LaserYawProportion = LaserYaw / accunit;
 				LaserPitchProportion = LaserPitch / accunit;
-				LaserYawProportion = Square(LaserYawProportion);
-				LaserPitchProportion = Square(LaserPitchProportion);
+				//DeusExPlayer(owner).ClientMessage(LaserPitchProportion);
+				//LaserYawProportion = Square(LaserYawProportion);
+				//LaserPitchProportion = Square(LaserPitchProportion);
 				if (LaserYaw < 0)
-					LaserYawProportion *= -1.0;
+					LaserYawProportion = ((-1.0000*Square(LaserYawProportion)) + (2.0000 * LaserYawProportion)) / 3.0000;
+					//LaserYawProportion *= -1.0;
+				else
+					LaserYawProportion = (Square(LaserYawProportion) + (2.0000 * LaserYawProportion)) / 3.0000;
 				if (LaserPitch < 0)
-					LaserPitchProportion *= -1.0;
+					LaserPitchProportion = ((-1.0000*Square(LaserPitchProportion)) + (2.0000 * LaserPitchProportion)) / 3.0000;
+					//LaserPitchProportion *= -1.0;
+				else
+					LaserPitchProportion = (Square(LaserPitchProportion) + (2.0000 * LaserPitchProportion)) / 3.0000;
 				LaserYaw -= LaserYawProportion * deltaTime * (900 + 0.75*accunit * (1 + velMagnitude/200));
 				LaserPitch -= LaserPitchProportion * deltaTime * (900 + 0.75*accunit * (1 + velMagnitude/200));
 				rot.Yaw += LaserYaw * currentAccuracy;
@@ -2087,12 +2177,14 @@ simulated function ResetShake()
 	if((!bZoomed) && (bLasing))
 	{
 		//G-Flex: we need radians for trig math, but URot units for the results. Sigh.
-		LaserAngle = (Rand(3072) - 1536);
+		//G-Flex: ACCURACY TESTING
+		//LaserAngle = (Rand(3072) - 1536);
+		LaserAngle = (Rand(3840) - 1920);
 		LaserDirection = (FRand() * 2 * pi);
 		LaserYaw = 10430.3783505 * atan(tan(LaserAngle * 0.000095873799) * cos(LaserDirection));//LaserAngle * Cos(LaserDirection);
 		LaserPitch = 10430.3783505 * atan(tan(LaserAngle * 0.000095873799) * sin(LaserDirection));//LaserAngle * Sin(LaserDirection);
-		ShakeMagnitude = 900 + (0.75 * Rand(1536));
-		ShakeMagnitudeToward = 900 + (0.75 * Rand(1536));
+		ShakeMagnitude = 900 + (0.75 * Rand(1920));
+		ShakeMagnitudeToward = 900 + (0.75 * Rand(1920));
 		ShakeAngleAccel = (FRand() * 4 * pi) - (2 * pi);
 		ShakeAngle = Rand(2*pi);
 	}
@@ -2291,7 +2383,7 @@ function SpawnEffects(Vector HitLocation, Vector HitNormal, Actor Other, float D
    if (hitSpawner != None)
 	{
       hitspawner.HitDamage = Damage;
-		hitSpawner.damageType = damageType;
+	  hitSpawner.damageType = damageType;
 	}
 	if (bHandToHand)
 	{
@@ -2502,7 +2594,7 @@ simulated function Projectile DoProjectileFire(class<projectile> ProjClass, floa
 {
 	local Vector Start, X, Y, Z;
 	local DeusExProjectile proj;
-	local float mult;
+	local float mult, speedMult, rangeMult;
 	local float volume, radius;
 	local int i, numProj;
 	local Pawn aPawn;
@@ -2516,15 +2608,43 @@ simulated function Projectile DoProjectileFire(class<projectile> ProjClass, floa
 		Accuracy = 0.0;
 	
 	// AugCombat increases our speed (distance) if hand to hand
-	mult = 1.0;
+	//G-Flex: but less so, and so does weapon skill
+	mult = 1.000;
+	speedMult = 1.000;
 	if (bHandToHand && (DeusExPlayer(Owner) != None))
 	{
-		mult = DeusExPlayer(Owner).AugmentationSystem.GetAugLevelValue(class'AugCombat');
-		if (mult == -1.0)
-			mult = 1.0;
-		ProjSpeed *= mult;
+		speedMult = DeusExPlayer(Owner).AugmentationSystem.GetAugLevelValue(class'AugCombat');
+		if (speedMult == -1.0)
+			speedMult = 1.0;
+		else
+		{
+			mult = speedMult;
+			speedMult = (1.00 + speedMult) / 2.00;
+		}
+		speedMult += -1.0 * GetWeaponSkill();
 	}
+	//G-Flex: to allow tougher enemies to do more damage as if they had more skill
+	else if (Owner.IsA('ScriptedPawn'))
+	{
+		mult += ScriptedPawn(Owner).DamageBonus;
+		if (bHandToHand)
+			speedMult += 0.50 * ScriptedPawn(Owner).DamageBonus;
+	}
+	rangeMult = speedMult;
 
+	//G-Flex: range mod previously did nothing for projectiles
+	//G-Flex: the game says range mods work on plasma rifles/flamethrowers, so let's make it so
+	//G-Flex: fireballs in particular need to go faster to go further, which makes sense
+	//G-Flex: don't do as much for the minicrossbow or whatever else
+	if (HasRangeMod())
+	{
+		rangeMult += ModAccurateRange;
+		if (IsA('WeaponPlasmaRifle') || IsA('WeaponFlamethrower'))
+			speedMult += ModAccurateRange;
+	}
+	
+	ProjSpeed *= speedMult;
+				
 	// skill also affects our damage
 	// GetWeaponSkill returns 0.0 to -0.7 (max skill/aug)
 	mult += -2.0 * GetWeaponSkill();
@@ -2565,7 +2685,9 @@ simulated function Projectile DoProjectileFire(class<projectile> ProjClass, floa
 			AdjustedAim = pawn(owner).AdjustAim(ProjSpeed, Start, AimError, True, bWarn);
 		if ((Accuracy > 0.0) && (Owner.IsA('PlayerPawn')) && !bHandToHand)
 		{
-			fireAngle = Accuracy * (Rand(3072) - 1536);
+			//G-Flex: ACCURACY TESTING
+			fireAngle = Accuracy * (Rand(3840) - 1920);
+			//fireAngle = Accuracy * (Rand(3072) - 1536);
 			fireRotationAngle = FRand() * 2 * pi;
 			AdjustedAim.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
 			AdjustedAim.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));//fireangle * Sin(fireRotationAngle);
@@ -2584,6 +2706,14 @@ simulated function Projectile DoProjectileFire(class<projectile> ProjClass, floa
 			{
 				// AugCombat increases our damage as well
 				proj.Damage *= mult;
+				
+				//G-Flex: actually use the new projectile speed (ProjSpeed / proj.Default.Speed)
+				proj.Speed *= speedMult;
+				proj.MaxSpeed *= speedMult;
+				proj.Velocity *= speedMult;
+				//G-Flex: travel further since we're faster
+				proj.MaxRange *= rangeMult;
+				proj.AccurateRange *= rangeMult;
 
 				// send the targetting information to the projectile
 				if (bCanTrack && (LockTarget != None) && (LockMode == LOCK_Locked))
@@ -2714,7 +2844,7 @@ simulated function DoTraceFire( float Accuracy )
 	//G-Flex: calculate spread for multishot weapons
 	//G-Flex: make sabot pellets all hit the same location (TERRIBLE!)
 	spreadAccuracy = 0.0;
-	if (AmmoType != None)
+	/*if (AmmoType != None)
 	{
 		if (!AmmoType.IsA('AmmoSabot'))
 		{
@@ -2725,7 +2855,19 @@ simulated function DoTraceFire( float Accuracy )
 				Accuracy = MinSpreadAcc;
 			}
 		}
+	}*/
+	//G-Flex: sabot always hits the same spot
+	//G-Flex: damage MUST be compensated for elsewhere!
+	if ((AmmoType != None) && AmmoType.IsA('AmmoSabot'))
+		numSlugs = 1;
+	else if (AmmoType != None)
+	{
+		if ((Owner.IsA('PlayerPawn')) && (numSlugs > 1) && !(bHandToHand))
+			spreadAccuracy = MinSpreadAcc;
+		else if ((numSlugs > 1) && !(bHandToHand) && (Accuracy < minSpreadAcc))
+			Accuracy = MinSpreadAcc;
 	}
+	
 	
 	//G-Flex: determine angle and direction of fire
 	aimRot = AdjustedAim;
@@ -2738,7 +2880,10 @@ simulated function DoTraceFire( float Accuracy )
 		//== Use a new, consistent method for calculating aim offsets.  Works just like the laser sight
 		//G-Flex: use that method to make realistic bullet spread. Wow!
 		//G-Flex: calculate angle from center
-		fireAngle = Accuracy * (Rand(3072) - 1536);
+		//G-Flex: ACCURACY TESTING, larger cone to make up for more centralized spread
+		//G-Flex: 1.25 times the angle
+		//fireAngle = Accuracy * (Rand(3072) - 1536);
+		fireAngle = Accuracy * (Rand(3840) - 1920);
 		//G-Flex: calculate direction from center
 		fireRotationAngle = FRand() * 2 * pi;
 		aimRot.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
@@ -2763,7 +2908,10 @@ simulated function DoTraceFire( float Accuracy )
 		rot = aimRot;
 		if(spreadAccuracy > 0.0)
 		{
-		fireAngle = spreadAccuracy * (Rand(3072) - 1536);
+		//G-Flex: ACCURACY TEST
+		//G-Flex: allow them to cluster a bit more
+		//fireAngle = spreadAccuracy * (Rand(3072) - 1536);
+		fireAngle = (0.8 * spreadAccuracy) * (Rand(3840) - 1920);
 		fireRotationAngle = FRand() * 2 * pi;
 		rot.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
 		rot.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));//fireangle * Sin(fireRotationAngle);
@@ -2773,6 +2921,8 @@ simulated function DoTraceFire( float Accuracy )
 	      else
 	      {
 
+		  //G-Flex: make some of the tougher NPCs a bit more accurate
+		  //G-Flex: it is really, really awful that ScriptedPawns don't have some skill property that's actually used
 		//== This is the old method.  It works in theory, but the spread is different than what the reticle shows.
 		//==  We need to use it for hand to hand weapons and NPC weapons (otherwise NPCs suck)
 		EndTrace = StartTrace + Accuracy * (FRand()-0.5)*Y*1000 + Accuracy * (FRand()-0.5)*Z*1000 ;
@@ -2951,7 +3101,15 @@ simulated function ProcessTraceHit(Actor Other, Vector HitLocation, Vector HitNo
 		// skill also affects our damage
 		// GetWeaponSkill returns 0.0 to -0.7 (max skill/aug)
 		mult += -2.0 * GetWeaponSkill();
+		
+		//G-Flex: to allow tougher enemies to do more damage as if they had more skill
+		if (Owner.IsA('ScriptedPawn'))
+			mult += ScriptedPawn(Owner).DamageBonus;
 
+		//G-Flex: compensate for sabot at the end
+		if ((AmmoType != None) && AmmoType.IsA('AmmoSabot'))
+				mult *= 5.000;
+			
 		// Determine damage type
 		damageType = WeaponDamageType();
 
@@ -2960,7 +3118,6 @@ simulated function ProcessTraceHit(Actor Other, Vector HitLocation, Vector HitNo
 			damageType = 'Shot';
 			X = vect(0,0,0);
 		}
-		
 		if (Other != None)
 		{
 			if (Other.bOwned)
@@ -3260,7 +3417,8 @@ simulated function bool UpdateInfo(Object winObject)
 		dmg = Default.HitDamage * numSlugs;
 
 	str = String(dmg);
-	mod = 1.0 - GetWeaponSkill();
+	//G-Flex: display the correct damage bonus
+	mod = 1.0 - (2.0 * GetWeaponSkill());
 	if (mod != 1.0)
 	{
 		str = str @ BuildPercentString(mod - 1.0);
@@ -3384,7 +3542,13 @@ simulated function bool UpdateInfo(Object winObject)
 		else
 			str = FormatFloatString(Default.MaxRange/16.0, 1.0) @ msgRangeUnit;
 	}
-	winInfo.AddInfoItem(msgInfoMaxRange, str);
+	//G-Flex: now affected by mod
+	if (HasRangeMod())
+	{
+		str = str @ BuildPercentString(ModAccurateRange);
+		str = str @ "=" @ FormatFloatString(MaxRange/16.0, 1.0) @ msgRangeUnit;
+	}
+	winInfo.AddInfoItem(msgInfoMaxRange, str, HasRangeMod());
 
 	// mass
 	winInfo.AddInfoItem(msgInfoMass, FormatFloatString(Default.Mass, 1.0) @ msgMassUnit);
@@ -4291,6 +4455,7 @@ defaultproperties
      MinSpreadAcc=0.250000
      MinProjSpreadAcc=1.000000
      bNeedToSetMPPickupAmmo=True
+	 DiffAccuracyMult=1.000000
      msgCannotBeReloaded="This weapon can't be reloaded"
      msgOutOf="Out of %s"
      msgNowHas="%s now has %s loaded"

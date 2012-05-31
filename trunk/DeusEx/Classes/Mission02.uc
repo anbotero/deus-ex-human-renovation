@@ -13,6 +13,7 @@ function FirstFrame()
 {
 	local ScriptedPawn pawn;
 	local FlagTrigger ftrig;
+	local DeusExMover door;
 
 	Super.FirstFrame();
 
@@ -66,6 +67,21 @@ function FirstFrame()
 					pawn.EnterWorld();
 			}
 		}
+		
+		if (!flags.GetBool('OsgoodDoorFixed'))
+		{
+			//G-Flex: so the terrorist inside Osgood & Son's won't smash the door every. single. time.
+			foreach AllActors(class'DeusExMover', door)
+			{
+				if (door.KeyIDNeeded == 'StreetWarehouse')
+				{
+					door.bIsDoor = true;
+					break;
+				}
+			}
+			flags.SetBool('OsgoodDoorFixed', True,, 3);
+		}
+		
 	}
 	else if (localURL == "02_NYC_UNDERGROUND")
 	{
@@ -109,12 +125,12 @@ function FirstFrame()
 	}
 	
 	//DX_Blaster: only Autosave if intended (->check User.ini setting)
-	if (Player.bAutoSave)
+	/*if (Player.bAutoSave)
 	{
 		if (dxInfo != None && !(player.IsInState('Dying')) && !(player.IsInState('Paralyzed')) && !(player.IsInState('Interpolating')) && 
 		player.dataLinkPlay == None && Level.Netmode == NM_Standalone)
 			player.SaveGame(-3, "Auto Save"); //Lork: Autosave after loading a new map... this saves lives!
-	}
+	}*/
 }
 
 // ----------------------------------------------------------------------
@@ -349,6 +365,7 @@ function Timer()
 				//count LeadTerrorist here too.
 				foreach AllActors(class'TerroristCarcass', carc, 'LeadTerrorist')
 				{
+				
 					if ((carc.KillerBindName != "JCDenton") || (carc.itemName == "Unconscious") || (carc.bNotDead))
 						count++;
 				}

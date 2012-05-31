@@ -55,7 +55,8 @@ defaultproperties
      ItemArticle="a"
      speed=800.000000
      MaxSpeed=800.000000
-     Damage=5.000000
+	 //G-Flex: was 5.000000
+     Damage=3.000000
      MomentumTransfer=500
      ExplosionDecal=Class'DeusEx.BurnMark'
      LifeSpan=0.500000

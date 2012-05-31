@@ -32,6 +32,7 @@ function Frob(actor Frobber, Inventory frobWith)
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      bCanBeBase=True
      ItemName="Grand Piano"

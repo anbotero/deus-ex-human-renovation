@@ -210,7 +210,12 @@ function DropThings()
 
 	// drop everything that is on us
 	foreach BasedActors(class'Actor', A)
+	{
 		A.SetPhysics(PHYS_Falling);
+		//G-Flex: this seems to help projectiles not scatter weirdly when they fall off
+		A.Velocity = vect(0,0,0);
+		A.Acceleration = vect(0,0,0);
+	}
 }
 
 //
@@ -364,11 +369,11 @@ function TakeDamage(int Damage, Pawn instigatedBy, Vector hitlocation, Vector mo
 		// add up the damage
 		//G-Flex: damage that isn't sabot/explosions is only 66% as effective
 		//G-Flex: this should make the sniper rifle and DTS less useful as lockpicks
-		if ((DamageType != 'Sabot') && (DamageType != 'Exploded'))
-			Damage *= 0.66;
-		//G-Flex: sabot gets a boost to this check; it's meant to punch through hard things
-		//G-Flex: so we partly account for the fact that it's in 5 pellets despite the flavor text/usage profile
-		if ((Damage >= minDamageThreshold) || ((DamageType == 'Sabot') && (5*Damage >= minDamageThreshold)))
+		//G-Flex: make sure to keep TraceHitSpawner correct too
+		if ((DamageType != 'Sabot') && (DamageType != 'Exploded') && (!IsA('BreakableGlass')))
+			Damage *= 0.666;
+		//G-Flex: sabot no longer needs a boost since it's one actual shell
+		if (Damage >= minDamageThreshold)
 			doorStrength -= Damage * 0.01;
 //		else
 //			doorStrength -= Damage * 0.001;		// damage below the threshold does 1/10th the damage

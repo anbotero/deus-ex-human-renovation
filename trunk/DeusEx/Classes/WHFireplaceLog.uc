@@ -5,6 +5,7 @@ class WHFireplaceLog extends WashingtonDecoration;
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      ItemName="Log"
      bPushable=False

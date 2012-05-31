@@ -140,9 +140,14 @@ function AddItem(Inventory invItem, Int count)
 		return;
 
 	//== Y|y: ...then get the right ammo count, if it's ammo...
-	if(Ammo(invItem) != None)
+	//G-Flex: try to display the correct amount this time
+	/*if(Ammo(invItem) != None)
 		if(Ammo(invItem).AmmoAmount > count)
+		{
+			DeusExPlayer(GetPlayerPawn()).ClientMessage("count: " $ count);
+			DeusExPlayer(GetPlayerPawn()).ClientMessage("AmmoAmount: " $ Ammo(invItem).AmmoAmount);
 			count = Ammo(invItem).AmmoAmount;
+		}*/
 
 	//== Y|y: ...and start checking for duplicate items.
 	if(winTile != None)
@@ -153,7 +158,11 @@ function AddItem(Inventory invItem, Int count)
 		if(itemWindow.IsA('HudReceivedDisplayItem'))
 		{
 			//== Y|y: If this IS a duplicate item then we should just update the amount, rather than make a new entry
-			if(HudReceivedDisplayItem(itemWindow).itemClass == invItem.Class && invItem.Class != None)
+			//G-Flex: also do the same for duplicate grenades and stuff
+			if((HudReceivedDisplayItem(itemWindow).itemClass == invItem.Class && invItem.Class != None)
+			 || (invItem.IsA('Ammo') && (invItem.PickupViewMesh == Mesh'TestBox')
+			 && ClassIsChildOf(HudReceivedDisplayItem(itemWindow).itemClass, class'DeusExWeapon')
+			 && (class<DeusExWeapon>(HudReceivedDisplayItem(itemWindow).itemClass).Default.AmmoName == invItem.Class)))
 			{
 				labelText = invItem.beltDescription;
 				if(labelText == "")

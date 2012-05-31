@@ -27,6 +27,7 @@ function FirstFrame()
 {
 	local BlackHelicopter chopper;
 	local InterpolateTrigger trig;
+	local DataCube cube;
 
 	Super.FirstFrame();
 
@@ -52,14 +53,23 @@ function FirstFrame()
 			flags.SetBool('MS_BeginSabotage', True,, 16);
 		}
 	}
+	else if (localURL == "15_AREA51_PAGE")
+	{
+		//G-Flex: restore gray dissection chart image
+		foreach AllActors(class'DataCube', cube)
+		{
+			if (cube.textTag == '15_Datacube18')
+				cube.imageClass = class'Image15_GrayDisection';
+		}
+	}
 	
 	//DX_Blaster: only Autosave if intended (->check User.ini setting)
-	if (Player.bAutoSave)
+	/*if (Player.bAutoSave)
 	{
 		if (dxInfo != None && !(player.IsInState('Dying')) && !(player.IsInState('Paralyzed')) && !(player.IsInState('Interpolating')) && 
 		player.dataLinkPlay == None && Level.Netmode == NM_Standalone)
 			player.SaveGame(-3, "Auto Save"); //Lork: Autosave after loading a new map... this saves lives!
-	}
+	}*/
 }
 
 // ----------------------------------------------------------------------

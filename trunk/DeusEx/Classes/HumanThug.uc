@@ -4,6 +4,12 @@
 class HumanThug extends ScriptedPawn
 	abstract;
 
+function AdjustProperties()
+{
+	//G-Flex: make more accurate (1.200000 -> 0.600000)
+	BaseAccuracy /= 2.0;
+}
+
 function PostBeginPlay()
 {
 	Super.PostBeginPlay();
@@ -28,7 +34,9 @@ function bool WillTakeStompDamage(actor stomper)
 
 defaultproperties
 {
-     BaseAccuracy=1.200000
+	 //G-Flex: make a little more accurate than civilians, at least, but not as much as military
+     //BaseAccuracy=1.200000
+	 BaseAccuracy=0.600000
      maxRange=700.000000
      bPlayIdle=True
      bAvoidAim=False

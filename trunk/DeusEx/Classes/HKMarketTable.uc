@@ -5,6 +5,7 @@ class HKMarketTable extends HongKongDecoration;
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      bCanBeBase=True
      ItemName="Table"

@@ -26,7 +26,8 @@ defaultproperties
      EnemyEffective=ENMEFF_Organic
      Concealability=CONC_Visual
      reloadTime=0.000000
-     HitDamage=5
+	 //G-Flex: 1 point damage increase
+     HitDamage=6
      maxRange=80
      AccurateRange=80
      BaseAccuracy=1.000000

@@ -1,7 +1,39 @@
 //=============================================================================
 // AnnaNavarre.
+// G-Flex: altered to use ShieldDamage()
 //=============================================================================
 class AnnaNavarre extends HumanMilitary;
+
+function AdjustProperties()
+{
+	//1.200000 instead of 2.000000
+	SurprisePeriod *= 0.600000;
+	//0.300000 instead of 0.500000
+	attackPeriod *= 0.600000;
+	//2.700000 instead of 4.500000
+	maxAttackPeriod *= 0.600000;
+	//0.007500 instead of 0.010000
+	VisibilityThreshold *= 0.750000;
+	//0.112500 instead of 0.150000
+	HearingThreshold *= 0.750000;
+	
+	GroundSpeed *= 1.15;
+	
+	//G-Flex: make more accurate than HumanMilitary parent class (0.200000 -> 0.100000)
+	BaseAccuracy /= 2.000000;
+	
+	DamageBonus = 0.075000;
+}
+
+function AdjustDifficulty(float diff)
+{
+	Super.AdjustDifficulty(diff);
+	
+	//G-Flex: 0.10, 0.07, 0.05, 0.03
+	BaseAccuracy /= diff;
+	//G-Flex: 0.08, 0.11, 0.15, 0.30
+	DamageBonus *= diff;
+}
 
 // ----------------------------------------------------------------------
 // SpawnCarcass()
@@ -67,6 +99,9 @@ function Explode()
 	}
 
 	HurtRadius(explosionDamage, explosionRadius, 'Exploded', explosionDamage*100, Location);
+	
+	//G-Flex: uncomment to have them spill their inventory when they blow up
+	//ExpelInventory();
 }
 
 function Bool HasTwoHandedWeapon()
@@ -74,11 +109,34 @@ function Bool HasTwoHandedWeapon()
 	return False;
 }
 
+// ----------------------------------------------------------------------
+// UpdateFire()
+// G-Flex: overloaded so she takes less damage from being on fire
+// ----------------------------------------------------------------------
+
+function UpdateFire()
+{
+	// continually burn and do damage
+	HealthTorso -= 3;
+	GenerateTotalHealth();
+	if (Health <= 0)
+	{
+		TakeDamage(10, None, Location, vect(0,0,0), 'Burned');
+		ExtinguishFire();
+	}
+}
+
 function float ModifyDamage(int Damage, Pawn instigatedBy, Vector hitLocation,
                             Vector offset, Name damageType)
 {
 	if ((damageType == 'Stunned') || (damageType == 'KnockedOut') || (damageType == 'Poison') || (damageType == 'PoisonEffect'))
 		return 0;
+	//G-Flex: take half-damage from energy sources
+	else if ((damageType == 'Flamed') || (damageType == 'Burned') || (damageType == 'Shocked') || (damageType == 'Radiation'))
+		return Super.ModifyDamage((0.5 * Damage), instigatedBy, hitLocation, offset, damageType);
+	//G-Flex: and some damage reduction from explosions
+	else if (damageType == 'Exploded')
+		return Super.ModifyDamage((0.66 * Damage), instigatedBy, hitLocation, offset, damageType);
 	else
 		return Super.ModifyDamage(Damage, instigatedBy, hitLocation, offset, damageType);
 }
@@ -104,7 +162,7 @@ defaultproperties
      InitialInventory(0)=(Inventory=Class'DeusEx.WeaponAssaultGun')
      InitialInventory(1)=(Inventory=Class'DeusEx.Ammo762mm',Count=12)
      InitialInventory(2)=(Inventory=Class'DeusEx.WeaponCombatKnife')
-     BurnPeriod=5.000000
+	 BurnPeriod=5.000000
      bHasCloak=True
      CloakThreshold=100
      walkAnimMult=1.000000
@@ -129,6 +187,8 @@ defaultproperties
      MultiSkins(6)=Texture'DeusExCharacters.Skins.PantsTex9'
      MultiSkins(7)=Texture'DeusExCharacters.Skins.AnnaNavarreTex1'
      CollisionHeight=47.299999
+	 //G-Flex: a little heavier
+	 Mass=175
      BindName="AnnaNavarre"
      FamiliarName="Anna Navarre"
      UnfamiliarName="Anna Navarre"

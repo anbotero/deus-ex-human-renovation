@@ -13,7 +13,8 @@ function FirstFrame()
 {
 	local DeusExMover M;
 	local BlackHelicopter chopper;
-
+	local Barrel1 barrel;
+	
 	Super.FirstFrame();
 
 	if (localURL == "09_NYC_SHIP")
@@ -43,14 +44,23 @@ function FirstFrame()
 				chopper.EnterWorld();
 		}
 	}
+	//G-Flex: make that barrel visible
+	else if (localURL == "09_NYC_GRAVEYARD")
+	{
+		foreach AllActors(class'Barrel1', barrel, 'BarrelOFun')
+		{
+			barrel.bHidden = false;
+			barrel.SetCollision(true, true, true);
+		}
+	}
 	
 	//DX_Blaster: only Autosave if intended (->check User.ini setting)
-	if (Player.bAutoSave)
+	/*if (Player.bAutoSave)
 	{
 		if (dxInfo != None && !(player.IsInState('Dying')) && !(player.IsInState('Paralyzed')) && !(player.IsInState('Interpolating')) && 
 		player.dataLinkPlay == None && Level.Netmode == NM_Standalone)
 			player.SaveGame(-3, "Auto Save"); //Lork: Autosave after loading a new map... this saves lives!
-	}
+	}*/
 }
 
 // ----------------------------------------------------------------------

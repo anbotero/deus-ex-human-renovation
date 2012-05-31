@@ -68,7 +68,8 @@ event SetItem(Inventory invItem, int count)
 	labelText = invItem.beltDescription;
 	if(labelText == "") //== Weird bug with robots, no idea why
 		labelText = invItem.Default.beltDescription;
-	if (count > 1 || invItem.IsA('Ammo')) //== Y|y for Ammo we ALWAYS want to list the amount
+	//G-Flex: don't always list the amount if it's something like a throwing knife or grenade
+	if (count > 1 || (invItem.IsA('Ammo') && invItem.PickupViewMesh != Mesh'TestBox')) //== Y|y for Ammo we ALWAYS want to list the amount
 		labelText = labelText $ " (" $ String(count) $ ")";
 
 	winLabel.SetText(labelText);

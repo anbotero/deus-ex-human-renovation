@@ -5,6 +5,7 @@ class WHRedOvalTable extends WashingtonDecoration;
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      bCanBeBase=True
      ItemName="Table"

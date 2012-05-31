@@ -19,19 +19,6 @@ function bool Facelift(bool bLiftOn)
 	return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 function Frob(Actor Frobber, Inventory frobWith)
 {
 	Super.Frob(Frobber, frobWith);

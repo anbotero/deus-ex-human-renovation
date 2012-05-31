@@ -156,7 +156,7 @@ simulated function Tick(float deltaTime)
 		return;
 
 	Super.Tick(deltaTime);
-
+	
    if (VSize(LastSeenLoc) < 1)
    {
       LastSeenLoc = Location + Normal(Vector(Rotation)) * 10000;
@@ -290,15 +290,20 @@ function SpawnBlood(Vector HitLocation, Vector HitNormal)
 	}
 }
 
+//G-Flex: edited to spawn crack type effects on movers
 simulated function SpawnEffects(Vector HitLocation, Vector HitNormal, Actor Other)
 {
 	local int i;
 	local DeusExDecal mark;
    local Rockchip chip;
+   local DeusExMover mov;
+   local float effectiveDamage;
+   
+   mov = DeusExMover(Other);
 
    // don't draw damage art on destroyed movers
-	if (DeusExMover(Other) != None)
-		if (DeusExMover(Other).bDestroyed)
+	if (mov != None)
+		if (mov.bDestroyed)
 			ExplosionDecal = None;
 
 	// draw the explosion decal here, not in Engine.Projectile
@@ -312,6 +317,48 @@ simulated function SpawnEffects(Vector HitLocation, Vector HitNormal, Actor Othe
 		}
 
 		ExplosionDecal = None;
+	}
+	else if ((mov != None) && !mov.bDestroyed && mov.bBreakable)
+	{
+		//G-Flex: correct for changes in DeusExMover
+		effectiveDamage = Damage;
+		if ((DamageType != 'Sabot') && (DamageType != 'Exploded') && (!mov.IsA('BreakableGlass')))
+			effectiveDamage *= 0.666;
+		//G-Flex: filter damage types that are filtered out in DeusExMover
+		else if ((DamageType == 'TearGas') || (damageType == 'PoisonGas') || (damageType == 'HalonGas')
+		|| (damageType == 'Stunned') || (damageType == 'Radiation') || (DamageType == 'EMP')
+		|| (DamageType == 'NanoVirus') || (DamageType == 'Shocked'))
+			effectiveDamage = -1.000;
+		if (mov.minDamageThreshold <= effectiveDamage)
+		{
+			mark = Spawn(class'BulletHole', mov,, HitLocation, Rotator(HitNormal));
+			if (mark != None)
+			{
+				mark.remoteRole = ROLE_None;
+				if (mov.FragmentClass == class'GlassFragment')
+				{
+					// glass hole
+					if (FRand() < 0.5)
+						mark.Texture = Texture'FlatFXTex29';
+					else
+						mark.Texture = Texture'FlatFXTex30';
+
+					mark.DrawScale = 0.1;
+					mark.ReattachDecal();
+				}
+				else
+				{
+					// non-glass crack
+					if (FRand() < 0.5)
+						mark.Texture = Texture'FlatFXTex7';
+					else
+						mark.Texture = Texture'FlatFXTex8';
+
+					mark.DrawScale = 0.4;
+					mark.ReattachDecal();
+				}
+			}
+		}
 	}
 
    //DEUS_EX AMSD Don't spawn these on the server.
@@ -495,6 +542,10 @@ auto simulated state Flying
 		if (bStuck)
 			return;
 
+		//G-Flex: let's try sticking projectiles in decorations
+		//G-Flex: or not, collision cylinders make it look terrible and weird and ugly
+		//if (Other.IsA('DeusExDecoration') && DeusExDecoration(Other).bInvincible)
+		//	HitWall(normal(Velocity), Other);
 		if ((Other != instigator) && (DeusExProjectile(Other) == None) &&
 			(Other != Owner))
 		{
@@ -513,9 +564,9 @@ auto simulated state Flying
 	{
 		if (bStickToWall)
 		{
+			SetPhysics(PHYS_None);
 			Velocity = vect(0,0,0);
 			Acceleration = vect(0,0,0);
-			SetPhysics(PHYS_None);
 			bStuck = True;
 
 			// MBCODE: Do this only on server side
@@ -532,13 +583,16 @@ auto simulated state Flying
 			}
 		}
 
-		if (Wall.IsA('BreakableGlass'))
+		//G-Flex: don't do double-damage for stick-in projectiles or extra damage for explosives
+		else if (Wall.IsA('BreakableGlass') && !bExplodes && (damageType != 'Flamed'))
 		{
-			bDebris = False;
 			if(Role == ROLE_Authority) //== Glass should be broken by projectiles
 				Wall.TakeDamage(Damage, Pawn(Owner), Wall.Location, MomentumTransfer*Normal(Velocity), damageType);
 		}
-
+		
+		if (Wall.IsA('BreakableGlass'))
+			bDebris = False;
+			
 		SpawnEffects(Location, HitNormal, Wall);
 
 		Super.HitWall(HitNormal, Wall);

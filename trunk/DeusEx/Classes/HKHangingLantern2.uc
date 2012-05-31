@@ -26,6 +26,7 @@ function BeginPlay()
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.PaperFragment'
      ItemName="Paper Lantern"
      Mesh=LodMesh'DeusExDeco.HKHangingLantern2'

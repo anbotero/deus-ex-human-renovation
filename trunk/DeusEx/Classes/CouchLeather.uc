@@ -20,7 +20,7 @@ function BeginPlay()
 
 	switch (SkinColor)
 	{
-		case SC_Black:		Skin = Texture'CouchLeatherTex1'; break;
+		case SC_Black:		Skin = Texture'CouchLeatherTex1'; bFlammable = false; break;
 		case SC_Blue:		Skin = Texture'CouchLeatherTex2'; break;
 		case SC_Brown:		Skin = Texture'CouchLeatherTex3'; break;
 		case SC_LitGray:	Skin = Texture'CouchLeatherTex4'; break;
@@ -36,6 +36,6 @@ defaultproperties
      Mesh=LodMesh'DeusExDeco.CouchLeather'
      CollisionRadius=47.880001
      CollisionHeight=23.250000
-     Mass=100.000000
+     Mass=125.000000//G-Flex: was 100
      Buoyancy=110.000000
 }

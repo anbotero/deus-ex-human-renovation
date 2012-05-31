@@ -9,6 +9,7 @@ defaultproperties
      Mesh=LodMesh'DeusExDeco.HKBuddha'
      CollisionRadius=36.000000
      CollisionHeight=53.799999
-     Mass=200.000000
+	 //G-Flex: was 250.000000
+     Mass=250.000000
      Buoyancy=5.000000
 }

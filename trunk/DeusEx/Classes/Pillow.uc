@@ -19,6 +19,7 @@ function bool Facelift(bool bOn)
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.PaperFragment'
      ItemName="Pillow"
      Mesh=LodMesh'DeusExDeco.Pillow'

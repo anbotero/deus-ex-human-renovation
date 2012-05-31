@@ -2,8 +2,6 @@
 // WeaponBaton.
 //=============================================================================
 
-
-
 class WeaponBaton extends DeusExWeapon;
 
 function bool Facelift(bool bOn)
@@ -27,72 +25,10 @@ function bool Facelift(bool bOn)
 	return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function name WeaponDamageType()
 {
 	return 'KnockedOut';
 }
-
-
-
-
-
-
-
 
 defaultproperties
 {
@@ -100,12 +36,11 @@ defaultproperties
      GoverningSkill=Class'DeusEx.SkillWeaponLowTech'
      NoiseLevel=0.050000
      reloadTime=0.000000
-     HitDamage=7
+	 //G-Flex: 5 instead of 7 damage, still does 7 from behind/when stunned
+     HitDamage=5
      maxRange=80
      AccurateRange=80
      BaseAccuracy=1.000000
-
-
      bPenetrating=False
      bHasMuzzleFlash=False
      bHandToHand=True
@@ -115,7 +50,6 @@ defaultproperties
      ReloadCount=0
      bInstantHit=True
      FireOffset=(X=-24.000000,Y=14.000000,Z=17.000000)
-
      shakemag=20.000000
      FireSound=Sound'DeusExSounds.Weapons.BatonFire'
      SelectSound=Sound'DeusExSounds.Weapons.BatonSelect'

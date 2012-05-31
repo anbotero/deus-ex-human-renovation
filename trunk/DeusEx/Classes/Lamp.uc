@@ -38,6 +38,7 @@ function PostBeginPlay()
 
 defaultproperties
 {
+	 bFlammable=False
      FragType=Class'DeusEx.GlassFragment'
      bPushable=False
      LightBrightness=255

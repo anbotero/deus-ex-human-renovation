@@ -5,6 +5,7 @@ class HKHangingLantern extends HangingDecoration;
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.PaperFragment'
      ItemName="Paper Lantern"
      Mesh=LodMesh'DeusExDeco.HKHangingLantern'
