@@ -573,7 +573,10 @@ function MoveEditControl(int rowId, optional bool bNoSetOldName)
 
 	// If the user is over the QuickSave slot, then prevent 
 	// him/her/it from modifying the text
-	editName.EnableEditing(int(lstGames.GetField(lstGames.GetSelectedRow(), 4)) != -1);
+	//editName.EnableEditing(int(lstGames.GetField(lstGames.GetSelectedRow(), 4)) != -1);
+	//G-Flex: disable editing data for the autosave slot as well
+	editName.EnableEditing((int(lstGames.GetField(lstGames.GetSelectedRow(), 4)) != -1) &&
+		(int(lstGames.GetField(lstGames.GetSelectedRow(), 4)) != -3));
 
 	// Unselect the row and hide its text
 	lstGames.SelectRow(editRowId, False);
@@ -638,7 +641,10 @@ event bool TextChanged(window edit, bool bModified)
 {
 	// If this is the quicksave gameslot, don't allow the user 
 	// to edit!!!
-	if (int(lstGames.GetField(lstGames.GetSelectedRow(), 4)) == -1)
+	//G-Flex: same for autosave
+	//if (int(lstGames.GetField(lstGames.GetSelectedRow(), 4)) == -1)
+	if ((int(lstGames.GetField(lstGames.GetSelectedRow(), 4)) == -1) ||
+		(int(lstGames.GetField(lstGames.GetSelectedRow(), 4)) == -3))
 		editName.EnableWindow(False);
 
 	EnableButtons();
@@ -654,8 +660,8 @@ function EnableButtons()
 {
 	// Don't allow delete if we're on the new savegame or the QuickSave 
 	// slot
-
-	if ((editRowId != newSaveRowId) && (editRowId != -1))
+	//G-Flex: same for autosave
+	if ((editRowId != newSaveRowId) && (editRowId != -1) && (editRowId != -3))
 		EnableActionButton(AB_Other, True, "DELETE");
 	else
 		EnableActionButton(AB_Other, False, "DELETE");

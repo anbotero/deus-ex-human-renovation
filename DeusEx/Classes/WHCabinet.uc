@@ -5,6 +5,7 @@ class WHCabinet extends WashingtonDecoration;
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      ItemName="Cabinet"
      Mesh=LodMesh'DeusExDeco.WHCabinet'

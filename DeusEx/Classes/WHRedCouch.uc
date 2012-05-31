@@ -17,19 +17,6 @@ function bool Facelift(bool bOn)
 	return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 defaultproperties
 {
      sitPoint(0)=(X=-5.000000,Y=0.000000,Z=0.000000)

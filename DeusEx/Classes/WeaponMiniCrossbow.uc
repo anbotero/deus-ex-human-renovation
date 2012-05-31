@@ -93,7 +93,8 @@ defaultproperties
      FireOffset=(X=-25.000000,Y=8.000000,Z=14.000000)
      ProjectileClass=Class'DeusEx.DartPoison'
      shakemag=30.000000
-     FireSound=Sound'DeusExSounds.Weapons.MiniCrossbowFire'
+	 //G-Flex: handled by the projectile alone now
+     //FireSound=Sound'DeusExSounds.Weapons.MiniCrossbowFire'
      AltFireSound=Sound'DeusExSounds.Weapons.MiniCrossbowReloadEnd'
      CockingSound=Sound'DeusExSounds.Weapons.MiniCrossbowReload'
      SelectSound=Sound'DeusExSounds.Weapons.MiniCrossbowSelect'

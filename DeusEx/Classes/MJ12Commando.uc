@@ -3,6 +3,20 @@
 //=============================================================================
 class MJ12Commando extends HumanMilitary;
 
+function AdjustProperties()
+{
+	//1.600000 instead of 2.000000
+	SurprisePeriod *= 0.800000;
+	//0.400000 instead of 0.500000
+	attackPeriod *= 0.800000;
+	//3.600000 instead of 4.500000
+	maxAttackPeriod *= 0.800000;
+	//0.006000 instead of 0.010000
+	VisibilityThreshold *= 0.600000;
+	//0.090000 instead of 0.150000
+	HearingThreshold *= 0.600000;
+}
+
 function Bool HasTwoHandedWeapon()
 {
 	return False;
@@ -98,6 +112,8 @@ defaultproperties
      MultiSkins(3)=Texture'DeusExCharacters.Skins.MJ12CommandoTex1'
      CollisionRadius=28.000000
      CollisionHeight=49.880001
+	 //G-Flex: a little heavier
+	 Mass=200.000000
      BindName="MJ12Commando"
      FamiliarName="MJ12 Commando"
      UnfamiliarName="MJ12 Commando"

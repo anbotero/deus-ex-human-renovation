@@ -62,12 +62,16 @@ function Timer()
 		// check to see if anything has entered our effect radius
 		// don't damage our owner
 		foreach VisibleActors(class'Actor', A, cloudRadius)
+		{
 			if (A != Owner)
 			{
 				// be sure to damage the torso
 				offset = A.Location;
+				//G-Flex: half damage since this happens twice as often now
+				//G-Flex: actually don't since TakeDamage() takes an integer. Whoops.
 				A.TakeDamage(Damage, Instigator, offset, vect(0,0,0), damageType);
 			}
+		}
 	}
 }
 

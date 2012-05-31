@@ -26,6 +26,7 @@ defaultproperties
      Mesh=LodMesh'DeusExDeco.RoadBlock'
      CollisionRadius=33.000000
      CollisionHeight=23.400000
-     Mass=200.000000
+	 //G-Flex: was 200.000000
+     Mass=350.000000
      Buoyancy=50.000000
 }

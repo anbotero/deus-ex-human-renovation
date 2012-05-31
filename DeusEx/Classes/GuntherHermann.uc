@@ -3,12 +3,42 @@
 //=============================================================================
 class GuntherHermann extends HumanMilitary;
 
+function AdjustProperties()
+{
+	//1.200000 instead of 2.000000
+	SurprisePeriod *= 0.600000;
+	//0.300000 instead of 0.500000
+	attackPeriod *= 0.600000;
+	//2.700000 instead of 4.500000
+	maxAttackPeriod *= 0.600000;
+	//0.006000 instead of 0.010000
+	VisibilityThreshold *= 0.600000;
+	//0.090000 instead of 0.150000
+	HearingThreshold *= 0.600000;
+	
+	//G-Flex: make more accurate than HumanMilitary parent class (0.200000 -> 0.100000)
+	BaseAccuracy /= 2.000000;
+	
+	DamageBonus = 0.075000;
+}
+
+function AdjustDifficulty(float diff)
+{
+	Super.AdjustDifficulty(diff);
+	
+	//G-Flex: 0.10, 0.07, 0.05, 0.03
+	BaseAccuracy /= diff;
+	//G-Flex: 0.08, 0.11, 0.15, 0.30
+	DamageBonus *= diff;
+}
+
+//G-Flex: changed to make him a little tougher
 //
 // Damage type table for Gunther Hermann:
 //
-// Shot			- 100%
-// Sabot		- 100%
-// Exploded		- 100%
+// Shot			- 66% (was 100%)
+// Sabot		- 66% (was 100%)
+// Exploded		- 33% (was 100%)
 // TearGas		- 10%
 // PoisonGas	- 10%
 // Poison		- 10%
@@ -25,6 +55,7 @@ class GuntherHermann extends HumanMilitary;
 
 function float ShieldDamage(name damageType)
 {
+	//G-Flex: shot/sabot handled in ModifyDamage() so the shield effect isn't drawn
 	// handle special damage types
 	if ((damageType == 'Flamed') || (damageType == 'Burned') || (damageType == 'Stunned') ||
 	    (damageType == 'KnockedOut'))
@@ -33,6 +64,8 @@ function float ShieldDamage(name damageType)
 			(damageType == 'Radiation') || (damageType == 'Shocked') || (damageType == 'Poison') ||
 	        (damageType == 'PoisonEffect'))
 		return 0.1;
+	else if (damageType == 'Exploded')
+		return 0.33;
 	else
 		return Super.ShieldDamage(damageType);
 }
@@ -68,36 +101,6 @@ function bool Facelift(bool bOn)
 	return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ----------------------------------------------------------------------
 // SpawnCarcass()
 //
@@ -106,8 +109,6 @@ function bool Facelift(bool bOn)
 
 function Carcass SpawnCarcass()
 {
-
-
 	if (bStunned)
 		return Super.SpawnCarcass();
 
@@ -146,9 +147,6 @@ function Explode()
 	if (sphere != None)
 		sphere.size = explosionRadius / 32.0;
 
-
-
-
 	// spawn a mark
 	s = spawn(class'ScorchMark', Base,, Location-vect(0,0,1)*CollisionHeight, Rotation+rot(16384,0,0));
 	if (s != None)
@@ -169,7 +167,19 @@ function Explode()
 	}
 
 	HurtRadius(explosionDamage, explosionRadius, 'Exploded', explosionDamage*100, Location);
+	
+	//G-Flex: uncomment to have them spill their inventory when they blow up
+	//ExpelInventory();
+}
 
+//G-Flex: shot/sabot reduction done here
+function float ModifyDamage(int Damage, Pawn instigatedBy, Vector hitLocation,
+                            Vector offset, Name damageType)
+{
+	if ((damageType == 'Shot') || (damageType == 'Sabot'))
+		return Super.ModifyDamage((0.66 * Damage), instigatedBy, hitLocation, offset, damageType);
+	else
+		return Super.ModifyDamage(Damage, instigatedBy, hitLocation, offset, damageType);
 }
 
 function GotoDisabledState(name damageType, EHitLocation hitPos)
@@ -261,6 +271,8 @@ defaultproperties
      MultiSkins(7)=Texture'DeusExItems.Skins.BlackMaskTex'
      CollisionRadius=24.200001
      CollisionHeight=55.660000
+	 //G-Flex: a little heavier
+	 Mass=200
      BindName="GuntherHermann"
      FamiliarName="Gunther Hermann"
      UnfamiliarName="Gunther Hermann"

@@ -161,6 +161,14 @@ function BeginPlay()
 
 function TravelPostAccept()
 {
+	//G-Flex: recheck to set up a fly generator
+	if (bGenerateFlies && (FRand() < 0.1))
+	{
+		if (flyGen == None)
+			flyGen = Spawn(Class'FlyGenerator', , , Location, Rotation);
+	}
+	else
+		flyGen = None;
 }
 
 // ----------------------------------------------------------------------
@@ -405,14 +413,18 @@ function ZoneChange(ZoneInfo NewZone)
 // Bump()
 // copied from Engine\Classes\Decoration.uc
 // modified so we can have strength modify what you can push
+//
+// G-Flex: modify so you need to be able to push the whole stack, not just this one
 // ----------------------------------------------------------------------
 
 function Bump(actor Other)
 {
-	local int augLevel, augMult;
+	local float augValue, augMult;
 	local float maxPush, velscale;
 	local DeusExPlayer player;
 	local Rotator rot;
+	
+	local float totalMass;
 
 	player = DeusExPlayer(Other);
 
@@ -444,23 +456,28 @@ function Bump(actor Other)
 		// Make sure this decoration isn't being bumped from above or below
 		if (abs(Location.Z-Other.Location.Z) < (CollisionHeight+Other.CollisionHeight-1))
 		{
-			maxPush = 100;
+			//G-Flex: was 100, now higher to account for other changes
+			maxPush = 125;
 			augMult = 1;
 			if (player != None)
 			{
 				if (player.AugmentationSystem != None)
 				{
-					augLevel = player.AugmentationSystem.GetClassLevel(class'AugMuscle');
-					if (augLevel >= 0)
-						augMult = augLevel+2;
+					//G-Flex: modified just as in DeusExPlayer.CanBeLifted() so higher levels matter more
+					augValue = player.AugmentationSystem.GetAugLevelValue(class'AugMuscle');
+					if (augValue >= 0)
+						augMult = Square(augValue)*1.25;
 					maxPush *= augMult;
 				}
 			}
 
-			if (Mass <= maxPush)
+			//G-Flex: use weight of the whole stack
+			TotalMass = GetStackMass(self);
+
+			if (TotalMass <= maxPush)
 			{
 				// slow it down based on how heavy it is and what level my augmentation is
-				velscale = FClamp((50.0 * augMult) / Mass, 0.0, 1.0);
+				velscale = FClamp((50.0 * augMult) / TotalMass, 0.0, 1.0);
 				if (velscale < 0.25)
 					velscale = 0;
 
@@ -510,6 +527,27 @@ function Bump(actor Other)
 	}
 }
 
+// ----------------------------------------------------------------------
+// GetStackMass()
+// 
+// G-Flex: gets the mass of the decoration and all others using it as a base
+// ----------------------------------------------------------------------
+
+function float GetStackMass(actor baseThing)
+{
+	local actor standingThing;
+	local float totalMass;
+	//G-Flex: only care about the weight of decorations, not weapons and pickups and stuff
+	totalMass = 0;
+	if (baseThing.IsA('DeusExDecoration'))
+		totalMass = baseThing.Mass;
+	//G-Flex: don't bother if we're not a base for anything
+	if (StandingCount > 0)
+		foreach baseThing.BasedActors(class'actor', standingThing)
+			totalMass += GetStackMass(standingThing);
+	
+	return totalMass;
+}
 // ----------------------------------------------------------------------
 // Timer() function for Bump
 //
@@ -748,7 +786,11 @@ auto state Active
 	function TakeDamage(int Damage, Pawn EventInstigator, vector HitLocation, vector Momentum, name DamageType)
 	{
 		local float avg;
-
+		
+		//G-Flex: don't take damage if pending deletion, to prevent double-fragging
+		if (bDeleteMe)
+			return;	
+		
 		if (bStatic || bInvincible)
 			return;
 
@@ -775,6 +817,11 @@ auto state Active
 			{
 				GotoState('Burning');
 				return;
+			}
+			//G-Flex: if underwater or non-flammable, do less damage
+			else
+			{
+				Damage *= 0.3333;
 			}
 		}
 
@@ -862,6 +909,10 @@ state Burning
 	function TakeDamage(int Damage, Pawn EventInstigator, vector HitLocation, vector Momentum, name DamageType)
 	{
 		local float avg;
+		
+		//G-Flex: don't take damage if pending deletion, to prevent double-fragging
+		if (bDeleteMe)
+			return;	
 
 		if ((DamageType == 'TearGas') || (DamageType == 'PoisonGas') || (DamageType == 'Radiation'))
 			return;
@@ -1011,6 +1062,10 @@ simulated function Frag(class<fragment> FragType, vector Momentum, float DSize, 
 	local actor A, Toucher;
 	local DeusExFragment s;
 
+	//G-Flex: don't make a bunch of flies on map transition
+	if ((Role == ROLE_Authority ) && (flyGen != None))
+		flyGen.Burst();
+	
 	if ( bOnlyTriggerable )
 		return; 
 	if (Event!='')
@@ -1056,7 +1111,6 @@ function Destroyed()
 
 	if (flyGen != None)
 	{
-		flyGen.Burst();
 		flyGen.StopGenerator();
 		flyGen = None;
 	}

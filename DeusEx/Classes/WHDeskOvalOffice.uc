@@ -5,6 +5,7 @@ class WHDeskOvalOffice extends WashingtonDecoration;
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      bCanBeBase=True
      ItemName="Desk"

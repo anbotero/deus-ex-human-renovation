@@ -17,19 +17,6 @@ function bool Facelift(bool bOn)
 	return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 defaultproperties
 {
      ItemName="Halogen Lamp"

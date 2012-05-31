@@ -41,6 +41,7 @@ function Tick(float deltaTime)
 
 defaultproperties
 {
+     bFlammable=true
      bRandomize=True
      FragType=Class'DeusEx.PaperFragment'
      ItemName="Canvas Tarp"

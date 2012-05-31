@@ -58,6 +58,8 @@ defaultproperties
      FireOffset=(X=28.000000,Y=12.000000,Z=4.000000)
      ProjectileClass=Class'DeusEx.RocketLAW'
      shakemag=500.000000
+	 //G-Flex: sounds are normally just handled by the projectile now
+	 //G-Flex: but this combination works well
      FireSound=Sound'DeusExSounds.Weapons.LAWFire'
      SelectSound=Sound'DeusExSounds.Weapons.LAWSelect'
      InventoryGroup=16

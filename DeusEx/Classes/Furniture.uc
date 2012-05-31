@@ -6,5 +6,7 @@ class Furniture extends DeusExDecoration
 
 defaultproperties
 {
+     //G-Flex: furniture flammable by default
+	 bFlammable=True
      FragType=Class'DeusEx.WoodFragment'
 }

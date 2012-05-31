@@ -1,31 +1,12 @@
 //=============================================================================
-// AugDefense.
+// AugDefenseNPC.
+// G-Flex: Terrible hack so that Walton Simons can get his Aggressive Defense
+// G-Flex: mostly just a simplified version of the parent class
 //=============================================================================
-class AugDefense extends Augmentation;
+class AugDefenseNPC extends AugDefense;
 
-var float mpAugValue;
-var float mpEnergyDrain;
-var bool bDefenseActive;
-
-var float defenseSoundTime;
-const defenseSoundDelay = 2;
-
-// ----------------------------------------------------------------------------
-// Networking Replication
-// ----------------------------------------------------------------------------
-
-replication
-{
-   //server to client variable propagation.
-   reliable if (Role == ROLE_Authority)
-      bDefenseActive;
-
-   //server to client function call
-   reliable if (Role == ROLE_Authority)
-      TriggerDefenseAugHUD, SetDefenseAugStatus;
-}
-
-state Active
+//G-Flex: Active should be the default state since we're on an NPC
+auto state Active
 {
 	function Timer()
 	{
@@ -34,20 +15,19 @@ state Active
 
 		minproj = None;
 
-		// DEUS_EX AMSD Multiplayer check
-		if (Player == None)
+		//G-Flex: sanity checks I guess
+		if ((Owner == None) || (!Owner.IsA('ScriptedPawn')))
 		{
-		 SetTimer(0.1,False);
+		 Destroy();
 		 return;
 		}
 
-		// In multiplayer propagate a sound that will let others know their in an aggressive defense field
-		// with range slightly greater than the current level value of the aug
-		if ( (Level.NetMode != NM_Standalone) && ( Level.Timeseconds > defenseSoundTime ))
-		{
-			Player.PlaySound(Sound'AugDefenseOn', SLOT_Interact, 1.0, ,(LevelValues[CurrentLevel]*1.33), 0.75);
-			defenseSoundTime = Level.Timeseconds + defenseSoundDelay;
-		}
+		//G-Flex: don't bother playing sounds at all
+		//if ( (Level.NetMode != NM_Standalone) && ( Level.Timeseconds > defenseSoundTime ))
+		//{
+		//	Player.PlaySound(Sound'AugDefenseOn', SLOT_Interact, 1.0, ,(LevelValues[CurrentLevel]*1.33), 0.75);
+		//	defenseSoundTime = Level.Timeseconds + defenseSoundDelay;
+		//}
 
 		//DEUS_EX AMSD Exported to function call for duplication in multiplayer.
 		minproj = FindNearestProjectile();
@@ -55,46 +35,33 @@ state Active
 		// if we have a valid projectile, send it to the aug display window
 		if (minproj != None)
 		{
-			 bDefenseActive = True;
-			 mindist = VSize(Player.Location - minproj.Location);
-			
-			 // DEUS_EX AMSD In multiplayer, let the client turn his HUD on here.
-			 // In singleplayer, turn it on normally.
-			 if (Level.Netmode != NM_Standalone)
-			    TriggerDefenseAugHUD();
-			 else
-			 {         
-			    SetDefenseAugStatus(True,CurrentLevel,minproj);
-			 }
+			mindist = VSize(Owner.Location - minproj.Location);
 
 			// play a warning sound
-			Player.PlaySound(sound'GEPGunLock', SLOT_None,,,, 2.0);
+			Owner.PlaySound(sound'GEPGunLock', SLOT_None,,,, 2.0);
 
 			if (mindist < LevelValues[CurrentLevel])
 			{
-            			minproj.bAggressiveExploded=True;
+            	minproj.bAggressiveExploded=True;
 				minproj.Explode(minproj.Location, vect(0,0,1));
-				Player.PlaySound(sound'ProdFire', SLOT_None,,,, 2.0);
+				minproj.PlaySound(sound'ProdFire', SLOT_None,,,, 2.0);
 			}
-		}
-		else
-		{
-			if ((Level.NetMode == NM_Standalone) || (bDefenseActive))
-				SetDefenseAugStatus(False,CurrentLevel,None);
-			bDefenseActive = false;
 		}
 	}
 
 Begin:
-	SetTimer(0.1, True);
+	//G-Flex: don't check quite as often for NPCs
+	SetTimer(0.15, True);
 }
 
 function Deactivate()
 {
-	Super.Deactivate();
+	//G-Flex: should never be deactivated
+}
 
-	SetTimer(0.1, False);
-   SetDefenseAugStatus(False,CurrentLevel,None);
+function Activate()
+{
+	//G-Flex: should never have to do this either
 }
 
 // ------------------------------------------------------------------------------
@@ -111,10 +78,11 @@ simulated function DeusExProjectile FindNearestProjectile()
 
    minproj = None;
    //G-Flex: lower this so stuff really far away won't be tracked
-   mindist = LevelValues[CurrentLevel] * 15.0;
+   //G-Flex: don't check as far as players do
+   mindist = LevelValues[CurrentLevel] * 5.0;
    checkdist = mindist;
    //G-Flex: use RadiusActors instead of AllActors
-   foreach RadiusActors(class'DeusExProjectile', proj, checkdist, Player.Location)
+   foreach RadiusActors(class'DeusExProjectile', proj, checkdist, Owner.Location)
    {
 
 	//== Y|y: Don't overcomplicate things.  The bIgnoresNanoDefense variable does a fine and dandy job in singleplayer too
@@ -127,15 +95,16 @@ simulated function DeusExProjectile FindNearestProjectile()
       if (bValidProj)
       {
          // make sure we don't own it
-         if (proj.Owner != Player)
+		 //G-Flex: and that it's owned by something, and that something is someone
+         if ((proj.Owner != None) && (proj.Owner != Owner) && (proj.Owner.IsA('Pawn')))
          {
-			 // MBCODE : If team game, don't blow up teammates projectiles
-			if (!((TeamDMGame(Player.DXGame) != None) && (TeamDMGame(Player.DXGame).ArePlayersAllied(DeusExPlayer(proj.Owner),Player))))
+			//G-Flex: make sure the owner is a valid enemy
+			if (ScriptedPawn(Owner).IsValidEnemy(Pawn(proj.Owner)))
 			{
 				// make sure it's moving fast enough
 				if (VSize(proj.Velocity) > 100)
 				{
-				   dist = VSize(Player.Location - proj.Location);
+				   dist = VSize(Owner.Location - proj.Location);
 				   //G-Flex: also make sure there isn't level geometry in the way
 				   //G-Flex: do this check after the others because it's slow
 				   if ((dist < mindist) && FastTrace(proj.Location, Owner.Location))
@@ -152,7 +121,7 @@ simulated function DeusExProjectile FindNearestProjectile()
    return minproj;
 }
 
-// ------------------------------------------------------------------------------
+/*// ------------------------------------------------------------------------------
 // TriggerDefenseAugHUD()
 // ------------------------------------------------------------------------------
 
@@ -210,21 +179,12 @@ simulated function PreBeginPlay()
 		EnergyRate = mpEnergyDrain;
 		defenseSoundTime=0;
 	}
-}
+}*/
 
 defaultproperties
 {
-     mpAugValue=500.000000
-     mpEnergyDrain=35.000000
-     EnergyRate=10.000000
-     Icon=Texture'DeusExUI.UserInterface.AugIconDefense'
-     smallIcon=Texture'DeusExUI.UserInterface.AugIconDefense_Small'
-     AugmentationName="Aggressive Defense System"
-     Description="Aerosol nanoparticles are released upon the detection of objects fitting the electromagnetic threat profile of missiles and grenades; these nanoparticles will prematurely detonate such objects prior to reaching the agent.|n|nTECH ONE: The range at which incoming rockets and grenades are detonated is short.|n|nTECH TWO: The range at which detonation occurs is increased slightly.|n|nTECH THREE: The range at which detonation occurs is increased moderately.|n|nTECH FOUR: Rockets and grenades are detonated almost before they are fired."
-     MPInfo="When active, enemy rockets detonate when they get close, doing reduced damage.  Some large rockets may still be close enough to do damage when they explode.  Energy Drain: Low"
      LevelValues(0)=160.000000
      LevelValues(1)=320.000000
      LevelValues(2)=480.000000
      LevelValues(3)=800.000000
-     MPConflictSlot=7
 }

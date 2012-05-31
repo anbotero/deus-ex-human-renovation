@@ -126,7 +126,7 @@ function bool IncLevel(optional DeusExPlayer usePlayer)
 	local DeusExPlayer localPlayer;
 
 	//G-Flex: For the speed aug level
-	local float speedLevel;
+	//local float speedLevel;
 
 	// First make sure we're not maxed out
 	if (CurrentLevel < 3)
@@ -151,16 +151,17 @@ function bool IncLevel(optional DeusExPlayer usePlayer)
 				CurrentLevel++;
 
 				//G-Flex: This is an awful hack.
-				if (localPlayer.AugmentationSystem != None)
-				{
-					speedLevel = FMax(1.0,localPlayer.AugmentationSystem.GetAugLevelValue(class'AugSpeed'));
-				}
-				else
-				{
-					speedLevel = 1.0;
-				}
-
-				localPlayer.JumpZ = localPlayer.Default.JumpZ * (0.20 * localPlayer.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.20 + speedLevel);
+				//G-Flex: now in SkillSwimming specifically
+				//if (localPlayer.AugmentationSystem != None)
+				//{
+				//	speedLevel = FMax(1.0,localPlayer.AugmentationSystem.GetAugLevelValue(class'AugSpeed'));
+				//}
+				//else
+				//{
+				//	speedLevel = 1.0;
+				//}
+				//
+				//localPlayer.JumpZ = localPlayer.Default.JumpZ * (0.20 * localPlayer.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.20 + speedLevel);
 				return True;
 			}
 		}

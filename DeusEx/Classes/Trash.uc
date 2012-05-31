@@ -84,6 +84,7 @@ function BeginPlay()
 
 defaultproperties
 {
+     bFlammable=true
      Time=1.000000
      rnd=1.000000
      bHighlight=False

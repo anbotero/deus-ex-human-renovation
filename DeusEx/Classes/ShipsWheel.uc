@@ -21,19 +21,6 @@ function bool Facelift(bool bOn)
 	return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 function Tick(float deltaTime)
 {
 	local Rotator rot;
@@ -68,6 +55,7 @@ function Frob(actor Frobber, Inventory frobWith)
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      ItemName="Ship's Wheel"
      bPushable=False

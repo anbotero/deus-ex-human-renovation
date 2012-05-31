@@ -15,11 +15,14 @@ simulated function PostBeginPlay()
    
    if (Owner == None)
       SetOwner(Level);
-   SpawnEffects(Owner,HitDamage);
+	//G-Flex: use timer so DeusExWeapon can set properties correctly before effects are drawn
+	SetTimer(0.01,False);
+   //SpawnEffects(Owner,HitDamage);
 }
 
 simulated function Timer()
 {
+   SpawnEffects(Owner,HitDamage);
    Destroy();
 }
 
@@ -80,7 +83,7 @@ simulated function SpawnEffects(Actor Other, float Damage)
    local DeusExMover mov;
 	local Spark		spark;
 
-   SetTimer(0.1,False);
+   //SetTimer(0.1,False);
    if (Level.NetMode == NM_DedicatedServer)
       return;
 
@@ -116,18 +119,32 @@ simulated function SpawnEffects(Actor Other, float Damage)
 		}
      //G-Flex: don't spawn rock chips on things that aren't level geometry
      if (Other == Level)
-         for (i=0; i<2; i++)
+	 {
+		if (DamageType == 'Sabot')
+			i = -1;
+		else
+			i = 0;
+        while (i < 2)
+		{
             if (FRand() < 0.8)
             {
                chip = spawn(class'Rockchip',,,Location+Vector(Rotation));
                if (chip != None)
                   chip.RemoteRole = ROLE_None;
             }
+			i++;
+		}
+	  }
 	}
 
    if ((!bHandToHand) && bInstantHit && bPenetrating)
 	{
-      hole = spawn(class'BulletHole', Other,, Location+Vector(Rotation), Rotation);
+	    hole = spawn(class'BulletHole', Other,, Location+Vector(Rotation), Rotation);
+		if (DamageType == 'Sabot')
+		{
+			hole.DrawScale = 0.200;
+			hole.ReattachDecal();
+		}
       if (hole != None)      
          hole.RemoteRole = ROLE_None;
 		//G-Flex: similar checks to above so sparks don't spawn on people/bodies
@@ -161,6 +178,9 @@ simulated function SpawnEffects(Actor Other, float Damage)
 
 			if (hole != None)
 			{
+				//G-Flex: correct for changes in DeusExMover
+				if ((DamageType != 'Sabot') && (DamageType != 'Exploded') && (!mov.IsA('BreakableGlass')))
+					Damage *= 0.666;
 				if (mov.bBreakable && (mov.minDamageThreshold <= Damage))
 				{
 					// don't draw damage art on destroyed movers

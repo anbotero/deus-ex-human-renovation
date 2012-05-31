@@ -155,6 +155,8 @@ function PostBeginPlay()
 {
 	local int i, j;
 	local Inventory inv;
+	local DeusExWeapon weap;
+	local class<ammo> AmmoName;
 
 	bCollideWorld = true;
 
@@ -174,6 +176,28 @@ function PostBeginPlay()
 					inv.bHidden = True;
 					inv.SetPhysics(PHYS_None);
 					AddInventory(inv);
+					
+					weap = DeusExWeapon(inv);
+					//G-Flex: initialize weapon ammo type for preplaced carcasses
+					if (weap != None)
+					{
+						if (weap.AmmoType == None)
+						{
+							if ((weap.AmmoNames[0] != None) && (weap.AmmoNames[0] != class'DeusEx.AmmoNone'))
+								AmmoName = weap.AmmoNames[0];
+							else if ((weap.AmmoName != None) && (weap.AmmoName != class'DeusEx.AmmoNone'))
+								AmmoName = weap.AmmoName;
+							if (AmmoName != None)
+							{
+								weap.AmmoType = Spawn(AmmoName, self);
+								weap.AmmoType.AmmoAmount = weap.PickUpAmmoCount;
+
+								weap.AmmoType.bHidden = True;
+								weap.AmmoType.SetPhysics(PHYS_None);
+								AddInventory(weap.AmmoType);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -280,6 +304,9 @@ function ChunkUp(int Damage)
 	local Vector loc;
 	local FleshFragment chunk;
 
+	//G-Flex: drop all the inventory
+	ExpelInventory();
+	
 	// gib the carcass
 	size = (CollisionRadius + CollisionHeight) / 2;
 	if (size > 10.0)
@@ -416,6 +443,159 @@ function SetScaleGlow()
 }
 
 // ----------------------------------------------------------------------
+// ExpelInventory()
+// G-Flex: so when the corpse is gibbed, items won't be lost
+// G-Flex: mostly a simplistic version of Frob()
+// ----------------------------------------------------------------------
+
+function ExpelInventory()
+{
+	local Inventory item, nextItem, startItem;
+	local DeusExPlayer player;
+	local Vector loc;
+
+	//G-Flex: don't do this in multiplayer
+	if (Level.Netmode != NM_Standalone)
+		return;
+	
+	player = DeusExPlayer(GetPlayerPawn());
+
+	if (Inventory != None)
+	{
+		//== Y|y: If by some chance we get items that belong to the player, skip them and move the Inventory
+		//==  variable to something
+		//G-Flex: not sure if this is needed in this function, but then again I don't know why it ever is
+		while(Inventory.Owner == player)
+		{
+			Inventory = Inventory.Inventory;
+			if(Inventory == None)
+				break;
+		}
+
+		item = Inventory;
+		startItem = item;
+
+		do
+		{
+			//== Y|y: and now some stuff to make sure we don't wander into player inventory AGAIN
+			if(item == None)
+				break;
+
+			while(item.Owner == player)
+			{
+				item = item.Inventory;
+				if(item == None)
+					break;
+			}
+
+			if(item == None)
+				break;
+
+			nextItem = item.Inventory;
+
+			if(nextItem != None)
+			{
+				while(nextItem.Owner == player)
+				{
+					nextItem = nextItem.Inventory;
+					item.Inventory = nextItem; //== Relink to the appropriate, un-player-owned item
+					if(nextItem == None)
+						break;
+				}
+			}
+
+			if (item.IsA('Ammo'))
+			{
+				// Only let the player pick up ammo that's already in a weapon
+				DeleteInventory(item);
+				item.Destroy();
+				item = None;
+			}
+			
+			if (item != None)
+			{
+				loc.X = (1-2*FRand()) * CollisionRadius;
+				loc.Y = (1-2*FRand()) * CollisionRadius;
+				loc.Z = (1-2*FRand()) * CollisionHeight;
+				loc += Location;
+				DeleteInventory(item);
+				item.DropFrom(loc);
+				if ( (item.IsA('DeusExWeapon')) )
+				{
+					// Any weapons have their ammo set to a random number of rounds (1-4)
+					// unless it's a grenade, in which case we only want to dole out one.
+					// DEUS_EX AMSD In multiplayer, give everything away.
+				
+					DeusExWeapon(item).SetDroppedAmmoCount();
+				}
+			}
+
+			item = nextItem;
+		}
+		until ((item == None) || (item == startItem));
+	}
+}
+
+// ----------------------------------------------------------------------
+// AttemptPickup()
+//
+// G-Flex: tries to pick up the corpse
+// ----------------------------------------------------------------------
+
+function bool AttemptPickup(Actor Frobber)
+{
+	local POVCorpse corpse;
+	local DeusExPlayer player;
+	
+	player = DeusExPlayer(Frobber);
+	
+	// don't pick up animal carcii
+	// DEUS_EX AMSD Since we don't have animations for carrying corpses, and since it has no real use in multiplayer,
+	// and since the PutInHand propagation doesn't just work, this is work we don't need to do.
+	// Were you to do it, you'd need to check the respawning issue, destroy the POVcorpse it creates and point to the
+	// one in inventory (like I did when giving the player starting inventory).
+	if ((!bAnimalCarcass) && (Inventory == None) && (player != None) && (player.inHand == None) && (Level.NetMode == NM_Standalone))
+	{
+		if (!bInvincible)
+		{
+			corpse = Spawn(class'POVCorpse');
+			if (corpse != None)
+			{
+				// destroy the actual carcass and put the fake one
+				// in the player's hands
+				corpse.carcClassString = String(Class);
+				corpse.KillerAlliance = KillerAlliance;
+				corpse.KillerBindName = KillerBindName;
+				corpse.Alliance = Alliance;
+				corpse.bNotDead = bNotDead;
+				corpse.bEmitCarcass = bEmitCarcass;
+				corpse.CumulativeDamage = CumulativeDamage;
+				corpse.MaxDamage = MaxDamage;
+				corpse.CorpseItemName = itemName;
+				corpse.CarcassName = CarcassName;
+				//G-Flex: Keep track of FamiliarName now as per Shifter
+				corpse.FamiliarName = FamiliarName;
+				
+				//Lork: Keep track of the unconscious vars as well
+				corpse.deadName = deadName;
+				corpse.wasFemale = wasFemale;
+				corpse.wasImportant = wasImportant;
+				corpse.flagName = flagName;
+				
+				corpse.Frob(player, None);
+				corpse.SetBase(player);
+				player.PutInHand(corpse);
+				bQueuedDestroy=True;
+				Destroy();
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
+// ----------------------------------------------------------------------
 // Frob()
 //
 // search the body for inventory items and give them to the frobber
@@ -426,6 +606,8 @@ function Frob(Actor Frobber, Inventory frobWith)
 	local Inventory item, nextItem, startItem;
 	local Pawn P;
 	local DeusExWeapon W;
+	//G-Flex: need to be able to flag that we found a weapon we should ignore
+	local bool bIgnore;
 	local bool bFoundSomething;
 	local DeusExPlayer player;
 	local ammo AmmoType;
@@ -444,51 +626,8 @@ function Frob(Actor Frobber, Inventory frobWith)
 		return;
 
 	// if we've already been searched, let the player pick us up
-	// don't pick up animal carcii
-	if (!bAnimalCarcass)
-	{
-      // DEUS_EX AMSD Since we don't have animations for carrying corpses, and since it has no real use in multiplayer,
-      // and since the PutInHand propagation doesn't just work, this is work we don't need to do.
-      // Were you to do it, you'd need to check the respawning issue, destroy the POVcorpse it creates and point to the
-      // one in inventory (like I did when giving the player starting inventory).
-		if ((Inventory == None) && (player != None) && (player.inHand == None) && (Level.NetMode == NM_Standalone))
-		{
-			if (!bInvincible)
-			{
-				corpse = Spawn(class'POVCorpse');
-				if (corpse != None)
-				{
-					// destroy the actual carcass and put the fake one
-					// in the player's hands
-					corpse.carcClassString = String(Class);
-					corpse.KillerAlliance = KillerAlliance;
-					corpse.KillerBindName = KillerBindName;
-					corpse.Alliance = Alliance;
-					corpse.bNotDead = bNotDead;
-					corpse.bEmitCarcass = bEmitCarcass;
-					corpse.CumulativeDamage = CumulativeDamage;
-					corpse.MaxDamage = MaxDamage;
-					corpse.CorpseItemName = itemName;
-					corpse.CarcassName = CarcassName;
-					//G-Flex: Keep track of FamiliarName now as per Shifter
-					corpse.FamiliarName = FamiliarName;
-					
-					//Lork: Keep track of the unconscious vars as well
-					corpse.deadName = deadName;
-					corpse.wasFemale = wasFemale;
-					corpse.wasImportant = wasImportant;
-					corpse.flagName = flagName;
-					
-					corpse.Frob(player, None);
-					corpse.SetBase(player);
-					player.PutInHand(corpse);
-					bQueuedDestroy=True;
-					Destroy();
-					return;
-				}
-			}
-		}
-	}
+	if (AttemptPickup(Frobber))
+		return;
 
 	bFoundSomething = False;
 	bSearchMsgPrinted = False;
@@ -558,33 +697,16 @@ function Frob(Actor Frobber, Inventory frobWith)
 				}
 				else if ( (item.IsA('DeusExWeapon')) )
 				{
-					// Any weapons have their ammo set to a random number of rounds (1-4)
-					// unless it's a grenade, in which case we only want to dole out one.
-					// DEUS_EX AMSD In multiplayer, give everything away.
 					W = DeusExWeapon(item);
 					
-					// Grenades and LAMs always pickup 1
-					if (W.IsA('WeaponNanoVirusGrenade') || 
-					  W.IsA('WeaponGasGrenade') || 
-					  W.IsA('WeaponEMPGrenade') ||
-					  W.IsA('WeaponLAM'))
-						W.PickupAmmoCount = 1;
-					else if (Level.NetMode == NM_Standalone) //== Y|y: CHANGE AMMO PICKUP AMOUNTS HERE
-						// W.PickupAmmoCount = Rand(4) + 1;
-						//G-Flex: Always still pick up 1-4 if default ammo pickup <= 8
-						//G-Flex: But pick up between 1 and half default pickup otherwise
-						if (W.Default.PickupAmmoCount == 0)
-							W.PickupAmmoCount = 0;
-						else if (W.Default.PickupAmmoCount <= 8)
-							W.PickupAmmoCount = Rand(4) + 1;
-						else
-							W.PickupAmmoCount = 1 + Rand(W.Default.PickupAmmoCount) / 2;
-
+					//G-Flex: this is handled in its own function now
+					W.SetDroppedAmmoCount();
 				}
 				
 				if (item != None)
 				{
-					bFoundSomething = True;
+					bIgnore = false;
+					//bFoundSomething = True;
 
 					if (item.IsA('NanoKey'))
 					{
@@ -625,6 +747,11 @@ function Frob(Actor Frobber, Inventory frobWith)
 						// want to give the player the AMMO only (as if the player already had 
 						// the weapon).
 
+						//G-Flex: try to allow multiple LAWs etc. by pretending we don't already have one
+						if ( (Weapon(Item).Default.ReloadCount == 0) &&
+				         (Weapon(Item).Default.PickupAmmoCount == 0) && 
+				         (Weapon(Item).Default.AmmoName != None) && !(DeusExWeapon(Item).bHandToHand))
+							W = None;
 						if ((W != None) || ((W == None) && (!player.FindInventorySlot(item, True))))
 						{
 							// Don't bother with this is there's no ammo
@@ -661,8 +788,14 @@ function Frob(Actor Frobber, Inventory frobWith)
 										// Mark it as 0 to prevent it from being added twice
 										Weapon(item).AmmoType.AmmoAmount = 0;
 									}
+									//G-Flex: flag that we couldn't pick this up
+									//else
+									//	bItemNotNeeded = True;
 								}
 							}
+							//G-Flex: check to see if we have the weapon but didn't get ammo for it
+							else if (W != None)
+								bIgnore = true;
 
 							// Print a message "Cannot pickup blah blah blah" if inventory is full
 							// and the player can't pickup this weapon, so the player at least knows
@@ -687,7 +820,9 @@ function Frob(Actor Frobber, Inventory frobWith)
 					else if (item.IsA('DeusExAmmo'))
 					{
 						if (DeusExAmmo(item).AmmoAmount == 0)
+						{
 							bPickedItemUp = True;
+						}
 					}
 
 					if (!bPickedItemUp)
@@ -702,15 +837,15 @@ function Frob(Actor Frobber, Inventory frobWith)
 
 							// Make sure the player doesn't have too many copies
 							if ((invItem.MaxCopies > 0) && (DeusExPickup(item).numCopies + invItem.numCopies > invItem.MaxCopies))
-							{	
+							{
 								// Give the player the max #
 								if ((invItem.MaxCopies - invItem.numCopies) > 0)
 								{
 									itemCount = (invItem.MaxCopies - invItem.numCopies);
 									DeusExPickup(item).numCopies -= itemCount;
 									invItem.numCopies = invItem.MaxCopies;
-									P.ClientMessage(invItem.PickupMessage @ invItem.itemArticle @ invItem.itemName, 'Pickup');
 									AddReceivedItem(player, invItem, itemCount);
+									P.ClientMessage(invItem.PickupMessage @ invItem.itemArticle @ invItem.itemName, 'Pickup');
 								}
 								else
 								{
@@ -722,8 +857,8 @@ function Frob(Actor Frobber, Inventory frobWith)
 								invItem.numCopies += itemCount;
 								DeleteInventory(item);
 
-								P.ClientMessage(invItem.PickupMessage @ invItem.itemArticle @ invItem.itemName, 'Pickup');
 								AddReceivedItem(player, invItem, itemCount);
+								P.ClientMessage(invItem.PickupMessage @ invItem.itemArticle @ invItem.itemName, 'Pickup');
 							}
 						}
 						else
@@ -773,6 +908,7 @@ function Frob(Actor Frobber, Inventory frobWith)
 							}
 						}
 					}
+					bFoundSomething = (bFoundSomething || !bIgnore);
 				}
 
 				item = nextItem;
@@ -783,7 +919,12 @@ function Frob(Actor Frobber, Inventory frobWith)
 //log("  bFoundSomething = " $ bFoundSomething);
 
 		if (!bFoundSomething)
+		{
+			//G-Flex: try to pick up the body again
+			if (AttemptPickup(Frobber))
+				return;
 			P.ClientMessage(msgEmpty);
+		}
 	}
 
    if ((player != None) && (Level.Netmode != NM_Standalone))
@@ -821,7 +962,9 @@ function AddReceivedItem(DeusExPlayer player, Inventory item, int count)
 		bSearchMsgPrinted = True;
 	}
 
-   DeusExRootWindow(player.rootWindow).hud.receivedItems.AddItem(item, 1);
+	//G-Flex: see if we can make the proper ammo, credit, etc. amounts display
+	//DeusExRootWindow(player.rootWindow).hud.receivedItems.AddItem(item, 1);
+	DeusExRootWindow(player.rootWindow).hud.receivedItems.AddItem(item, count);
 
 	// Make sure the object belt is updated
 	if (item.IsA('Ammo'))

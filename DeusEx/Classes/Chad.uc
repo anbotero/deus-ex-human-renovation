@@ -8,6 +8,8 @@ defaultproperties
      CarcassType=Class'DeusEx.ChadCarcass'
      WalkingSpeed=0.213333
      bImportant=True
+	 //G-Flex: the game always assumes he's alive, so make him invincible
+	 bInvincible=True
      walkAnimMult=0.500000
      GroundSpeed=180.000000
      Mesh=LodMesh'DeusExCharacters.GM_DressShirt_S'

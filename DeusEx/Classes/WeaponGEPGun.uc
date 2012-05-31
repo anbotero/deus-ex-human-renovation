@@ -81,7 +81,8 @@ defaultproperties
      FireOffset=(X=-46.000000,Y=22.000000,Z=10.000000)
      ProjectileClass=Class'DeusEx.Rocket'
      shakemag=500.000000
-     FireSound=Sound'DeusExSounds.Weapons.GEPGunFire'
+	 //G-Flex: handled by the projectile alone now
+     //FireSound=Sound'DeusExSounds.Weapons.GEPGunFire'
      CockingSound=Sound'DeusExSounds.Weapons.GEPGunReload'
      SelectSound=Sound'DeusExSounds.Weapons.GEPGunSelect'
      InventoryGroup=17

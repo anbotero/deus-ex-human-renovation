@@ -68,7 +68,7 @@ simulated function DoTraceFire( float Accuracy )
 	{
 		aimRot = AdjustedAim;
 		//fireAccuracy = Accuracy * (Rand(3072) - 1536);
-		fireAccuracy = Accuracy * 1536;
+		fireAccuracy = Accuracy * 1920;
 		fireRotationAngle = FRand() * 2.0 * pi;
 		//G-Flex: use parametric equations for heart shape, normalize radius
 		fireYaw = 16.0*(sin(fireRotationAngle)**3);

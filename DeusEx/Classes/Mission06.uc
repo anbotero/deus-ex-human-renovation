@@ -24,9 +24,12 @@ function FirstFrame()
 	local float rnd;
 	local Keypad3 pad;
 	local AllianceTrigger altrig;
-	local MJ12Troop mjtroop;
-	local Mover thecase;
+	local DeusExMover thecase;
 	local FlagTrigger ftrig;
+	local Trigger trig;
+	local LightSwitch theswitch;
+	local Button1 thebutton;
+	local HKMilitary cop;
 
 	Super.FirstFrame();
 
@@ -40,36 +43,89 @@ function FirstFrame()
 	}
 	else if (localURL == "06_HONGKONG_WANCHAI_STREET")
 	{
-		if(!flags.GetBool('MJ12_Troops_Silent'))
+		//G-Flex: make the cops a little less forgiving of you firing shots and stuff
+		//G-Flex: they can continue to not care about you holding a weapon because that might be intentional
+		//G-Flex: this is also done for the GARAGE and CANAL maps
+		if(!flags.GetBool('HK_Military_Reactions_STREET'))
 		{
-			foreach AllActors(class'MJ12Troop', mjtroop)
+			foreach AllActors(class'HKMilitary', cop)
 			{
-				mjtroop.bPlayIdle = False;
+				cop.MaxProvocations--;
+				flags.SetBool('HK_Military_Reactions_STREET',True);
 			}
-			flags.SetBool('MJ12_Troops_Silent', True,, 8);
 		}
-
 		if(!flags.GetBool('DisplayCase_Moveable'))
 		{
-			foreach AllActors(class'Mover', thecase, 'Dispalycase')
+			foreach AllActors(class'DeusExMover', thecase, 'Dispalycase')
 			{
 				if(VSize(thecase.KeyPos[1] - thecase.KeyPos[0]) <= 4)
 				{
 					thecase.KeyPos[1].Z = -136.000000;
 					flags.SetBool('DisplayCase_WasUnMoveable',True); //== For debug purposes
 				}
+				
+				//G-Flex: stop MJ12 troops struggling to open the damn thing themselves
+				thecase.bIsDoor = false;
+				thecase.bTriggerOnceOnly = false;
+				thecase.StayOpenTime = 20;
+				thecase.InitialState = 'TriggerOpenTimed';
+				thecase.GotoState('TriggerOpenTimed');
 
 				flags.SetBool('DisplayCase_Moveable',True);
+			}
+		}
+		if (!flags.GetBool('DisplayCase_Trigger'))
+		{
+			foreach AllActors(class'Trigger', trig, 'Trigger')
+			{
+				if (trig.Event == 'Dispalycase')
+				{				
+					trig.bTriggerOnceOnly = false;
+					trig.ReTriggerDelay = 0.5;
+					trig.TriggerType = TT_ClassProximity;
+					trig.ClassProximityType = class'ScriptedPawn';
+					trig.SetCollisionSize(100, 40);
+					
+					flags.SetBool('DisplayCase_Trigger',True);
+				}
+			}
+		}
+		//G-Flex: it's not a toggle anymore, so we should probably turn the switch into a button
+		if (!flags.GetBool('DisplayCase_Switch'))
+		{
+			foreach AllActors(class'LightSwitch', theswitch, 'LightSwitch')
+			{
+				if (theswitch.Event == 'Dispalycase')
+				{				
+					thebutton = Spawn(class'Button1', None,, theswitch.location, theswitch.rotation);
+					if (thebutton != None)
+					{
+						thebutton.event = theswitch.event;
+						theswitch.Destroy();
+						flags.SetBool('DisplayCase_Switch',True);
+					}
+				}
 			}
 		}
 	}
 	else if (localURL == "06_HONGKONG_WANCHAI_CANAL")
 	{
+		if(!flags.GetBool('HK_Military_Reactions_CANAL'))
+		{
+			foreach AllActors(class'HKMilitary', cop)
+			{
+				cop.MaxProvocations--;
+				flags.SetBool('HK_Military_Reactions_CANAL',True);
+			}
+		}
+		//G-Flex: used to read 'HaveROM', fixed
 		if (!flags.GetBool('Supervisor01_Dead') &&
-			flags.GetBool('HaveROM'))
+			flags.GetBool('Have_ROM'))
 		{
 			foreach AllActors(class'DeusExCarcass', carc, 'John_Smith_Body')
+			{
 				carc.bHidden = False;
+			}
 		}
 	}
 	else if (localURL == "06_HONGKONG_MJ12LAB")
@@ -143,7 +199,11 @@ function FirstFrame()
 			foreach AllActors(class'ScriptedPawn', pawn)
 			{
 				if (pawn.IsA('GordonQuick'))
+				{
 					pawn.EnterWorld();
+					//G-Flex: make sure he's invincible
+					pawn.bInvincible = true;
+				}
 				else if (pawn.IsA('MaxChen'))
 					TeleportPawn(pawn, 'ChenAtBar', 'Standing');
 			}
@@ -153,6 +213,14 @@ function FirstFrame()
 	}
 	else if (localURL == "06_HONGKONG_WANCHAI_GARAGE")
 	{
+		if(!flags.GetBool('HK_Military_Reactions_GARAGE'))
+		{
+			foreach AllActors(class'HKMilitary', cop)
+			{
+				cop.MaxProvocations--;
+				flags.SetBool('HK_Military_Reactions_GARAGE',True);
+			}
+		}
 		if (flags.GetBool('M07Briefing_Played'))
 		{
 			foreach AllActors(class'HKMilitary', mil, 'RumbleCops')
@@ -338,12 +406,12 @@ function FirstFrame()
 	}
 	
 	//DX_Blaster: only Autosave if intended (->check User.ini setting)
-	if (Player.bAutoSave)
+	/*if (Player.bAutoSave)
 	{
 		if (dxInfo != None && !(player.IsInState('Dying')) && !(player.IsInState('Paralyzed')) && !(player.IsInState('Interpolating')) && 
 		player.dataLinkPlay == None && Level.Netmode == NM_Standalone)
 			player.SaveGame(-3, "Auto Save"); //Lork: Autosave after loading a new map... this saves lives!
-	}
+	}*/
 }
 
 // ----------------------------------------------------------------------
@@ -385,6 +453,9 @@ function Timer()
 	local Actor A;
 	local PatrolPoint PP;
 	local Keypad1 pad;
+	local MJ12Troop mjtroop;
+	local MaggieChow mchow;
+	local bool chowalert;
 
 	Super.Timer();
 
@@ -408,6 +479,43 @@ function Timer()
 				walton.LeaveWorld();
 
 			flags.SetBool('MS_WaltonHidden', True,, 8);
+		}
+		
+		//G-Flex: this can't happen on the first frame, because the NPCs might be in the Startup state
+		if(!flags.GetBool('MJ12_Troops_Silent'))
+		{
+			if(!flags.GetBool('MJ12_Troops_Silent_FIRST'))
+				flags.SetBool('MJ12_Troops_Silent_FIRST', True,, 8);
+			else
+			{
+				foreach AllActors(class'MJ12Troop', mjtroop)
+				{
+					mjtroop.bPlayIdle = False;
+					//G-Flex: change their reactions too so they don't respond to noise and some other things
+					mjtroop.SetReactions(true, false, true, true, true, false, false, true,
+					 true, true, true, true);
+				}
+				flags.SetBool('MJ12_Troops_Silent', True,, 8);
+			}
+			
+		}
+		//G-Flex: reset their reactions when Chow is dead, leaving, or hostile
+		else if (!flags.GetBool('MJ12_Troops_Unsilenced'))
+		{
+			chowalert = true;
+			foreach AllActors(class'MaggieChow', mchow)
+			{
+				if ((mchow.orders != 'Leaving') && (mchow.GetStateName() != 'Attacking') && (mchow.GetStateName() != 'Fleeing'))
+					chowalert = false;
+			}
+			if (chowalert)
+			{
+				foreach AllActors(class'MJ12Troop', mjtroop)
+				{
+					mjtroop.ResetReactions();
+				}
+				flags.SetBool('MJ12_Troops_Unsilenced', True,, 8);
+			}
 		}
 	}
 	else if (localURL == "06_HONGKONG_WANCHAI_UNDERWORLD")
@@ -686,6 +794,8 @@ function Timer()
 					pad.bHackable = False;
 					pad.hackStrength = 1.0;
 					flags.SetBool('Deactivate_Keypad', False);
+					//G-Flex: stop the keypad window from persisting due to the change
+					pad.keypadwindow.DestroyWindow();
 				}
 			}
 		}

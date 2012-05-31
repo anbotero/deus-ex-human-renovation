@@ -30,7 +30,8 @@ defaultproperties
      mpFuselength=1.500000
      fuseLength=3.000000
      proxRadius=128.000000
-     AISoundLevel=0.000000
+	 //G-Flex: up from 0.000000
+     AISoundLevel=0.200000
      bBlood=False
      bDebris=False
      DamageType=TearGas

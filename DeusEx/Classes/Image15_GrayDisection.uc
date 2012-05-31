@@ -13,7 +13,8 @@ defaultproperties
      imageTextures(1)=Texture'DeusExUI.UserInterface.Image15_GrayDisection_2'
      imageTextures(2)=Texture'DeusExUI.UserInterface.Image15_GrayDisection_3'
      imageTextures(3)=Texture'DeusExUI.UserInterface.Image15_GrayDisection_4'
-     imageDescription="Gray Disection"
+	 //G-Flex: typo, was "Disection"
+     imageDescription="Gray Dissection"
      colNoteTextNormal=(R=50,G=50)
      colNoteTextFocus=(R=0,G=0)
      colNoteBackground=(R=32,G=32)

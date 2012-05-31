@@ -3,6 +3,25 @@
 //=============================================================================
 class PaulDenton extends HumanMilitary;
 
+function AdjustProperties()
+{
+	//1.200000 instead of 2.000000
+	SurprisePeriod *= 0.600000;
+	//0.300000 instead of 0.500000
+	attackPeriod *= 0.600000;
+	//2.700000 instead of 4.500000
+	maxAttackPeriod *= 0.600000;
+	//0.007000 instead of 0.010000
+	VisibilityThreshold *= 0.700000;
+	//0.195000 instead of 0.150000
+	HearingThreshold *= 0.700000;
+	
+	//G-Flex: make more accurate than HumanMilitary parent class (0.200000 -> 0.050000)
+	BaseAccuracy /= 4.0;
+	
+	DamageBonus = 0.25;
+}
+
 //
 // Damage type table for Paul Denton:
 //

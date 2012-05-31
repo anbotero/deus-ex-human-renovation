@@ -2,6 +2,7 @@
 // WeaponModRange
 //
 // Increases Accurate Range
+//G-Flex: also increases max range
 //=============================================================================
 class WeaponModRange extends WeaponMod;
 
@@ -14,6 +15,7 @@ function ApplyMod(DeusExWeapon weapon)
 	if (weapon != None)
 	{
 		weapon.AccurateRange    += (weapon.Default.AccurateRange * WeaponModifier);
+		weapon.MaxRange    += (weapon.Default.MaxRange * WeaponModifier);
 		weapon.ModAccurateRange += WeaponModifier;
 	}
 }

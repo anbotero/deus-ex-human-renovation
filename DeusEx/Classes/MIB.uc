@@ -3,6 +3,20 @@
 //=============================================================================
 class MIB extends HumanMilitary;
 
+function AdjustProperties()
+{
+	//1.400000 instead of 2.000000
+	SurprisePeriod *= 0.700000;
+	//0.350000 instead of 0.500000
+	attackPeriod *= 0.700000;
+	//3.150000 instead of 4.500000
+	maxAttackPeriod *= 0.700000;
+	//0.007500 instead of 0.010000
+	VisibilityThreshold *= 0.750000;
+	//0.112500 instead of 0.150000
+	HearingThreshold *= 0.750000;
+}
+
 // ----------------------------------------------------------------------
 // SpawnCarcass()
 //
@@ -67,6 +81,12 @@ function Explode()
 	}
 
 	HurtRadius(explosionDamage, explosionRadius, 'Exploded', explosionDamage*100, Location);
+	
+	//G-Flex: uncomment to have them spill their inventory when they blow up
+	//G-Flex: not enabled by default because it's more tactically interesting when they don't
+	//G-Flex: plus it might have been part of intended game balance
+	//
+	//ExpelInventory();
 }
 
 defaultproperties
@@ -94,6 +114,8 @@ defaultproperties
      MultiSkins(6)=Texture'DeusExCharacters.Skins.LensesTex3'
      MultiSkins(7)=Texture'DeusExItems.Skins.PinkMaskTex'
      CollisionHeight=52.250000
+	 //G-Flex: a little heavier
+	 Mass=180.000000
      BindName="MIB"
      FamiliarName="Man In Black"
      UnfamiliarName="Man In Black"

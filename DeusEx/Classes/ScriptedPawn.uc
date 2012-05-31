@@ -418,6 +418,19 @@ var      float    runAnimMult;
 
 var()    vector    EnemyLastSeenAt; //A vector indicating the last position the enemy was sighted
 
+//G-Flex: make attackPeriod/maxAttackPeriod an object variable so we can change it
+var      float    attackPeriod;
+var      float    maxAttackPeriod;
+var      float    playerCheckDistance;
+var      float    playerDiffRoot;
+//G-Flex: we already have BaseAccuracy but having a damage multiplier would be nice too
+//G-Flex: this way the augmented enemies can have more effective skill-based damage
+//G-Flex: this is expressed as a percentage bonus where 0.00 = no bonus
+var      float    DamageBonus;
+
+var      name     lastState;
+var      Pawn     delayedInstigator;
+
 native(2102) final function ConBindEvents();
 
 native(2105) final function bool IsValidEnemy(Pawn TestEnemy, optional bool bCheckAlliance);
@@ -515,6 +528,35 @@ function PostPostBeginPlay()
 	ConBindEvents();
 }
 
+// ----------------------------------------------------------------------
+// AdjustProperties()
+//  G-Flex: overload in subclasses to tweak their statistics
+//	G-Flex: so preplaced NPCs with non-default stats are handled OK
+//	G-Flex: (the maps have a lot of NPCs like that)
+// ----------------------------------------------------------------------
+
+function AdjustProperties()
+{
+	//G-Flex: do nothing by default
+}
+
+// ----------------------------------------------------------------------
+// AdjustDifficulty()
+// 	G-Flex: make adjustments to enemy stats based on difficulty
+// ----------------------------------------------------------------------
+
+function AdjustDifficulty(float diff)
+{	
+	//Easy: 1.0000, Medium: 1.1498, Hard: 1.2761, Realistic: 1.6667
+	playerCheckDistance *= ((1.00+(2.00*playerDiffRoot))/3.00);
+	SightRadius *= ((1.00+(2.00*playerDiffRoot))/3.00);  // probably does nothing
+	HearingThreshold /= playerDiffRoot;
+	//G-Flex: some preplaced NPCs have a VisibilityThreshold of 0, and I'm not convinced that works well
+	VisibilityThreshold = FMax(VisibilityThreshold, 0.000500);
+	VisibilityThreshold *= (1.50 / (0.50+playerDiffRoot));
+	
+	//G-Flex: don't change attackPeriod/maxAttackPeriod or SurprisePeriod here, that has other implications	
+}
 
 // ----------------------------------------------------------------------
 // Destroyed()
@@ -546,6 +588,8 @@ simulated function Destroyed()
 
 function InitializePawn()
 {
+	local float difficulty;
+	
 	if (!bInitialized)
 	{
 		InitializeInventory();
@@ -568,6 +612,20 @@ function InitializePawn()
 		animTimer[1] = 20.0;
 		PlayTurnHead(LOOK_Forward, 1.0, 0.0001);
 
+		//G-Flex: make difficulty-based and other adjustments
+		if (Level.NetMode == NM_StandAlone)
+		{
+			if (DeusExPlayer(GetPlayerPawn()) != None)
+			{
+				difficulty = DeusExPlayer(GetPlayerPawn()).combatDifficulty;
+				//Easy: 1.0000, Medium: 1.2247, Hard: 1.4142, Realistic: 2.0000
+				playerDiffRoot = sqrt(difficulty);
+				AdjustProperties();
+				AdjustDifficulty(difficulty);
+			}
+			else //bad, very bad
+				log("~~~ ERROR: ScriptedPawn can't find player in order to set difficulty for " $ BindName);
+		}
 		bInitialized = true;
 
 	}
@@ -1059,8 +1117,12 @@ function ReactToFutz()
 
 function ReactToProjectiles(Actor projectileActor)
 {
+	//G-Flex: edit this a bunch to get NPCs to react better to thrown explosives
 	local DeusExProjectile dxProjectile;
 	local Pawn             instigator;
+	local bool				bGrenade;
+	
+	bGrenade = projectileActor.IsA('ThrownProjectile');
 
 	if ((bFearProjectiles || bReactProjectiles) && bLookingForProjectiles)
 	{
@@ -1072,18 +1134,40 @@ function ReactToProjectiles(Actor projectileActor)
 				instigator = projectileActor.Instigator;
 			if (instigator != None)
 			{
+				lastState = GetStateName();
 				if (bFearProjectiles)
 					IncreaseFear(instigator, 2.0);
 				if (SetEnemy(instigator))
 				{
+					//SetDistressTimer();
+					//if (bGrenade)
+					//{
+					//	DeusExPlayer(GetPlayerPawn()).ClientMessage("SetEnemy -> avoidingprojectiles");
+					//	lastState = 'HandlingEnemy';
+					//	delayedInstigator = instigator;
+					//	SetState('AvoidingProjectiles');
+					//}
+					//else
 					SetDistressTimer();
+					if (bGrenade)
+					{
+						if (ReactionLevel < 1.0)
+							ReactionLevel = 1.0;
+					}
 					HandleEnemy();
 				}
 				else if (bFearProjectiles && IsFearful())
 				{
 					SetDistressTimer();
 					SetEnemy(instigator, , true);
-					GotoState('Fleeing');
+					if (bGrenade)
+					{
+						lastState = 'Fleeing';
+						delayedInstigator = instigator;
+						SetState('AvoidingProjectiles');
+					}
+					else
+						GotoState('Fleeing');
 				}
 				else if (bAvoidHarm)
 					SetState('AvoidingProjectiles');
@@ -1508,10 +1592,6 @@ function HandleEnemy()
 
 function HandleSighting(Pawn pawnSighted)
 {
-
-
-
-
 	SetSeekLocation(pawnSighted, pawnSighted.Location, SEEKTYPE_Sight);
 	GotoState('Seeking');
 }
@@ -1777,7 +1857,10 @@ function UpdateReactionLevel(bool bRise, float deltaSeconds)
 			surpriseTime = SurprisePeriod;
 			if (surpriseTime <= 0)
 				surpriseTime = 0.00000001;
-			ReactionLevel += (deltaSeconds/surpriseTime);
+			//ReactionLevel += (deltaSeconds/surpriseTime);
+			//G-Flex: react more quickly at higher difficulty
+			//G-Flex: easy: 1.0000, medium: 1.1685, hard: 1.3107, realistic: 1.7500
+			ReactionLevel += ((deltaSeconds/surpriseTime) * (1.00+(3.00*playerDiffRoot))/4.00);
 			if (ReactionLevel > 1.0)
 				ReactionLevel = 1.0;
 		}
@@ -1801,15 +1884,16 @@ function UpdateReactionLevel(bool bRise, float deltaSeconds)
 
 function Pawn CheckCycle()
 {
-	local float attackPeriod;
-	local float maxAttackPeriod;
+	//G-Flex: make attackPeriod/maxAttackPeriod an object variable so we can change it
+	//local float attackPeriod;
+	//local float maxAttackPeriod;
 	local float sustainPeriod;
 	local float decayPeriod;
 	local float minCutoff;
 	local Pawn  cycleEnemy;
 
-	attackPeriod    = 0.5;
-	maxAttackPeriod = 4.5;
+	//attackPeriod    = 0.5;
+	//maxAttackPeriod = 4.5;
 	sustainPeriod   = 3.0;
 	decayPeriod     = 4.0;
 
@@ -1836,7 +1920,10 @@ function Pawn CheckCycle()
 			CycleCumulative = minCutoff;
 		else if (CycleCumulative > 1.0)
 			CycleCumulative = 1.0;
-		EnemyReadiness += CycleCumulative*CyclePeriod/attackPeriod;
+		//EnemyReadiness += CycleCumulative*CyclePeriod/attackPeriod;
+		//G-Flex: react more quickly at higher difficulty
+		//G-Flex: easy: 1.0000, medium: 1.1685, hard: 1.3107, realistic: 1.7500
+		EnemyReadiness += ((CycleCumulative*CyclePeriod/attackPeriod) * (1.00+(3.00*playerDiffRoot))/4.00);
 		if (EnemyReadiness >= 1.0)
 		{
 			EnemyReadiness = 1.0;
@@ -2210,8 +2297,11 @@ function bool IsProjectileDangerous(DeusExProjectile projectile)
 	{
 		if (projectile.IsA('SpyBot'))
 			bEvil = false;
-		else if ((ThrownProjectile(projectile) != None) && (ThrownProjectile(projectile).bProximityTriggered))
+		else if ((ThrownProjectile(projectile) != None) &&
+		(ThrownProjectile(projectile).bProximityTriggered))
+		{
 			bEvil = false;
+		}
 		else
 			bEvil = true;
 	}
@@ -2461,6 +2551,8 @@ function DropWeapon()
 			oldWeapon = Weapon;
 			SetWeapon(None);
 			oldWeapon.DropFrom(Location);
+			//G-Flex: give same ammo count as if you frobbed the dude's carcass
+			DeusExWeapon(oldWeapon).SetDroppedAmmoCount();
 		}
 	}
 }
@@ -2749,6 +2841,13 @@ function SupportActor(Actor standingActor)
 		zVelocity    = standingActor.Velocity.Z;
 		damagePoint  = Location + vect(0,0,1)*(CollisionHeight-1);
 		damage       = (1 - (standingMass/baseMass) * (zVelocity/100));
+		
+		if (damage > 5)
+			damage += (damage - 5) * 1.25;
+		if (damage > 10)
+			damage += (damage - 10) * 1.5;
+		if (damage > 15)
+			damage += (damage - 15) * 1.75;
 
 		// Have we been stomped?
 		if ((zVelocity*standingMass < -7500) && (damage > 0) && WillTakeStompDamage(standingActor))
@@ -2784,6 +2883,9 @@ function Carcass SpawnCarcass()
 	// if we really got blown up good, gib us and don't display a carcass
 	if ((Health < -100) && !IsA('Robot'))
 	{
+		//G-Flex: drop all our inventory on the ground instead of destroying it
+		ExpelInventory();
+		
 		size = (CollisionRadius + CollisionHeight) / 2;
 		if (size > 10.0)
 		{
@@ -2860,6 +2962,54 @@ function Carcass SpawnCarcass()
 }
 
 // ----------------------------------------------------------------------
+// ExpelInventory()
+// G-Flex: so if the NPC is instagibbed, items won't be lost
+// G-Flex: uses some logic from SpawnCarcass()
+// ----------------------------------------------------------------------
+
+function ExpelInventory()
+{
+	local Vector loc;
+	local Inventory item, nextItem;
+
+	//G-Flex: just like carcass-spawning, don't bother with animal or robot inventories
+	if (!IsA('Animal') && !IsA('Robot'))
+	{
+		if (Inventory != None)
+		{
+			do
+			{
+				item = Inventory;
+				nextItem = item.Inventory;
+				//G-Flex: not necessary to delete items since dropping them does that
+				//DeleteInventory(item);
+				if ((Ammo(item) != None) || ((DeusExWeapon(item) != None) && (DeusExWeapon(item).bNativeAttack)))
+					item.Destroy();
+				else
+				{
+					//G-Flex: spread them out like chunks, but a little less
+					loc.X = (1-2*FRand()) * CollisionRadius;
+					loc.Y = (1-2*FRand()) * CollisionRadius;
+					loc.Z = (1-2*FRand()) * CollisionHeight;
+					loc += Location;
+					item.DropFrom(loc);
+					
+					item.Velocity += Velocity;
+					item.Velocity += VRand() * (100.0 + (400.0 / item.Mass));
+					
+					//G-Flex: get the same ammo as from the carcass or a dropped weapon
+					if (item.IsA('DeusExWeapon'))
+						DeusExWeapon(item).SetDroppedAmmoCount();				
+				}
+					
+				item = nextItem;
+			}
+			until (item == None);
+		}
+	}
+}
+
+// ----------------------------------------------------------------------
 // FilterDamageType()
 // ----------------------------------------------------------------------
 
@@ -2903,13 +3053,35 @@ function float ModifyDamage(int Damage, Pawn instigatedBy, Vector hitLocation,
 	armOffset   = CollisionRadius * 0.35;
 
 	// if the pawn is stunned, damage is 4X
-	if (bStunned)
+	/*if (bStunned)
 		actualDamage *= 4;
 
 	// if the pawn is hit from behind at point-blank range, he is killed instantly
 	else if (offset.x < 0)
 		if ((instigatedBy != None) && (VSize(instigatedBy.Location - Location) < 64))
-			actualDamage  *= 10;
+			actualDamage  *= 10;*/
+	
+	//G-Flex: now you get point-blank attack bonus if enemy is stunned 
+	//G-Flex: sneak attack bonus now *7.0 instead of *10
+	//G-Flex: knockout weapons e.g. baton work better in these situations, baton does its old default damage
+	//G-Flex: don't do sneak attack/stun bonus damage for explosions, poison, etc. (some handled below this)
+	if ((damageType != 'Exploded') && (damageType != 'PoisonGas') && (damageType != 'HalonGas') &&
+		(damageType != 'Radiation') && (damageType != 'Poison') && (damageType != 'fell') && (damageType != 'Stomped') && (damageType != 'PoisonEffect'))
+	{
+		if (((instigatedBy != None) && (VSize(instigatedBy.Location - Location) < 64)) && ((bStunned) || (offset.x < 0)))
+		{
+			actualDamage *= 7.0;
+			if (damageType == 'KnockedOut')
+				actualDamage *= 1.400;
+		}
+		//G-Flex: smaller damage boost to other damage while stunned since they can't properly defend
+		else if (bStunned)
+			actualDamage *= 2.0;
+		//G-Flex: half bonus for flamethrowers and such
+		//G-Flex: sneak attacking with a flamethrower is a little silly after all
+		if (damageType == 'Flamed')
+			actualdamage = (actualDamage + (2*Damage)) / 3.000;
+	}
 
 	actualDamage = Level.Game.ReduceDamage(actualDamage, DamageType, self, instigatedBy);
 
@@ -3064,7 +3236,7 @@ function EHitLocation HandleDamage(int actualDamage, Vector hitLocation, Vector 
 				// don't allow headshots with stunning weapons
 				//G-Flex: Original code made stunning headshots do half damage of other stunning shots.
 				//G-Flex: This was dumb because it encouraged hitting people in the torso for KOs.
-				if ((damageType == 'Stunned') || (damageType == 'KnockedOut'))
+				if ((damageType == 'Stunned') || (damageType == 'KnockedOut') || (damageType == 'Stomped'))
 					HealthHead -= actualDamage * 3;
 				else
 					HealthHead -= actualDamage * 8;
@@ -7350,7 +7522,7 @@ function Tick(float deltaTime)
 	{
 		if (DistanceFromPlayer > 1200)
 			bDoLowPriority = false;
-		if (DistanceFromPlayer > 2500)
+		if (DistanceFromPlayer > playerCheckDistance) //G-Flex: was hardcoded at 2500
 			bCheckPlayer = false;
 		if ((DistanceFromPlayer > 600) && (LastRendered() >= 5.0))
 			bCheckOther = false;
@@ -7647,6 +7819,15 @@ function ZoneChange(ZoneInfo newZone)
 
 singular function BaseChange()
 {
+	if ((base != None) && base.IsA('DeusExMover'))
+	{
+		//G-Flex: prevent NPCs getting stuck in certain doors as they open/close
+		if (DeusExMover(base).bInterpolating && (DeusExMover(base).MoverEncroachType == ME_IgnoreWhenEncroach))
+		{
+			SetBase(None);
+			return;
+		}
+	}
 	Super.BaseChange();
 
 	if (bSitting && !IsSeatValid(SeatActor))
@@ -8245,7 +8426,7 @@ function Bump(actor Other)
 	local int          yaw;
 	local ScriptedPawn avoidPawn;
 	local DeusExPlayer dxPlayer;
-	local bool         bTurn;
+	local bool         bTurn, bJustTurned;
 
 	// Handle futzing and projectiles
 	if (Other.Physics == PHYS_Falling)
@@ -8262,11 +8443,13 @@ function Bump(actor Other)
 	
 	// Have we walked into another (non-level) actor?
 	bTurn = false;
+	//G-Flex: need this so the NPC can react in more than one way
+	bJustTurned = false;
 	if ((Physics == PHYS_Walking) && (Acceleration != vect(0,0,0)) && bWalkAround && (Other != Level) && !Other.IsA('Mover'))
 		if ((TurnDirection == TURNING_None) || (AvoidBumpTimer <= 0))
 			if (HandleTurn(Other))
 				bTurn = true;
-
+	
 	// Turn away from the actor
 	if (bTurn)
 	{
@@ -8306,6 +8489,7 @@ function Bump(actor Other)
 			AvoidBumpTimer   = 0.2;
 			ActorAvoiding    = Other;
 			bClearedObstacle = false;
+			bJustTurned = true;
 
 			avoidPawn = ScriptedPawn(ActorAvoiding);
 
@@ -8331,6 +8515,34 @@ function Bump(actor Other)
 			}
 		}
 	}
+	
+	dxPlayer = DeusExPlayer(Other);
+	
+	//G-Flex: hostile dudes should react to the player bumping into them
+	if ((dxPlayer != None) && ((AvoidBumpTimer <= 0) || (bJustTurned)))
+	{
+		AvoidBumpTimer   = 0.2;
+		
+		if ((IsValidEnemy(dxPlayer)) && bLookingForEnemy)
+		{
+			//G-Flex: if they're already in the seeking state, alert to player's presence
+			if (IsInState('Seeking'))
+			{
+				if (SetEnemy(dxPlayer))
+					SetDistressTimer();
+			}
+			else
+			{
+				SetSeekLocation(dxPlayer, dxPlayer.Location, SEEKTYPE_Sight);
+				SeekLevel += 2; //hack
+			}
+			HandleEnemy();
+		}
+		//G-Flex: non-hostiles should react to you bumping into them while invisible
+		else if ((FRand() < 0.20) && (dxPlayer.CalculatePlayerVisibility(self) == 0.0))
+			ReactToFutz();
+	}
+	
 }
 
 
@@ -10629,10 +10841,6 @@ Begin:
 	WaitForLanding();
 	PlayWaiting();
 	if ((Weapon != None) && bKeepWeaponDrawn && (Weapon.CockingSound != None) && !bSeekPostCombat)
-
-
-
-
 		PlaySound(Weapon.CockingSound, SLOT_None,,, 1024);
 
 	Acceleration = vect(0,0,0);
@@ -10710,7 +10918,10 @@ TurnToLocation:
 	bInterruptSeek = false;
 
 	PlayWaiting();
-	Sleep(FRand()*1.5+3.0);
+	//Sleep(FRand()*1.5+3.0);
+	//G-Flex: NPCs should probably react more quickly to new sounds and such
+	//G-Flex: might as well scale this by difficulty since they'll also react faster
+	Sleep((FRand()*2.5+2.0) / playerDiffRoot);
 
 LookAround:
 	if (bCanTurnHead)
@@ -11081,6 +11292,8 @@ State Fleeing
 		Disable('AnimEnd');
 		//Disable('Bump');
 		BlockReactions();
+		bLookingForProjectiles = true;
+		UpdateReactionCallbacks();
 		if (!bCower)
 			bCanConverse = False;
 		bStasis = False;
@@ -11094,6 +11307,7 @@ State Fleeing
 
 	function EndState()
 	{
+		lastState = '';
 		EnableCheckDestLoc(false);
 		Enable('AnimEnd');
 		//Enable('Bump');
@@ -11108,6 +11322,9 @@ Begin:
 	destPoint = None;
 
 Surprise:
+	//G-Flex: bonus to reaction if we just avoided a grenade
+	if (lastState == 'AvoidingProjectiles')
+		ReactionLevel = 1.0;
 	if ((1.0-ReactionLevel)*SurprisePeriod < 0.25)
 		Goto('Flee');
 	Acceleration=vect(0,0,0);
@@ -13381,18 +13598,46 @@ Watch:
 	PlayWaiting();
 	LookAtVector(useLoc, true, false, true);
 	TurnTo(Vector(DesiredRotation)*1000+Location);
-	sleepTime = 3.0;
+	//G-Flex: if we're about to fight someone or something, don't bother waiting around
+	if (delayedInstigator == None)
+		sleepTime = 3.0;
+	else
+		sleepTime = 0.0;
 	while (sleepTime > 0)
 	{
 		sleepTime -= 0.5;
 		Sleep(0.5);
 		PickDestination(false);
-
 	}
 
 Done:
-	if (Orders != 'AvoidingProjectiles')
+	if (lastState == 'Fleeing')
+	{
+		if (delayedInstigator != None)
+		{
+			SetEnemy(delayedInstigator, , true);
+			delayedInstigator = None;
+		}
+		SetNextState(lastState);
+		lastState = 'AvoidingProjectiles';
+		GotoNextState();
+	}
+	else if (Orders != 'AvoidingProjectiles')
+	{
+		lastState = '';
 		FollowOrders();
+	}
+	else if (lastState != '')
+	{
+		SetNextState(lastState);
+		if (lastState == 'Seeking')
+			SeekLevel = Rand(1) + 1;
+		else if (lastState == 'Fleeing')
+			lastState = 'AvoidingProjectiles';
+		else
+			lastState = '';
+		GotoNextState();
+	}
 	else
 		GotoState('Wandering');
 
@@ -14409,6 +14654,12 @@ defaultproperties
      FearSustainTime=25.000000
      FearDecayRate=0.500000
      SurprisePeriod=2.000000
+	 //G-Flex: make attackPeriod/maxAttackPeriod an object variable so we can change it
+	 attackPeriod=0.500000
+	 maxAttackPeriod=4.500000
+	 playerCheckDistance=2500.0000
+	 playerDiffRoot=1.000000
+	 DamageBonus=0.000000
      SightPercentage=0.500000
      bHasShadow=True
      ShadowScale=1.000000

@@ -3,6 +3,12 @@
 //=============================================================================
 class SamCarter extends HumanMilitary;
 
+function AdjustProperties()
+{
+	//G-Flex: make more accurate than HumanMilitary parent class (0.200000 -> 0.100000)
+	BaseAccuracy /= 2.0;
+}
+
 defaultproperties
 {
      CarcassType=Class'DeusEx.SamCarterCarcass'

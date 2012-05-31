@@ -5,6 +5,7 @@ class HKTukTuk extends HongKongDecoration;
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      bFloating=True
      bCanBeBase=True

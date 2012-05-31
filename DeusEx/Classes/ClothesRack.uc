@@ -28,6 +28,7 @@ function BeginPlay()
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.PaperFragment'
      ItemName="Hanging Clothes"
      Mesh=LodMesh'DeusExDeco.ClothesRack'

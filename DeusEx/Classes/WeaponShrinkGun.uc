@@ -88,17 +88,8 @@ simulated function DoTraceFire( float Accuracy )
 		// check our range
 		dist = Abs(VSize(HitLocation - Owner.Location));
 
-		if (dist <= AccurateRange)		// we hit just fine
+		if (dist <= MaxRange)		// we hit just fine
 			ProcessTraceHit(Other, HitLocation, HitNormal, vector(AdjustedAim),Y,Z);
-		else if (dist <= MaxRange)
-		{
-			// simulate gravity by lowering the bullet's hit point
-			// based on the owner's distance from the ground
-			alpha = (dist - AccurateRange) / (MaxRange - AccurateRange);
-			degrade = 0.5 * Square(alpha);
-			HitLocation.Z += degrade * (Owner.Location.Z - Owner.CollisionHeight);
-			ProcessTraceHit(Other, HitLocation, HitNormal, vector(AdjustedAim),Y,Z);
-		}
 	}
 
 	//== Make the laser sight jump a little so it moves from a different location
@@ -114,7 +105,8 @@ function ShrinkIt(actor Other)
 	if (Other == None)
 		return;
 
-	if(Other != Level && !Other.IsA('DeusExMover'))
+	
+	if(Other != Level && !Other.bStatic && !Other.IsA('DeusExMover') && ((Other.Default.CollisionRadius / Other.CollisionRadius) <= 3.9))
 	{
 		shield = Spawn(class'EllipseEffect', Other,, Other.Location, Other.Rotation);
 		if (shield != None)
@@ -123,14 +115,14 @@ function ShrinkIt(actor Other)
 		//Other.CollisionRadius = (Other.CollisionRadius / 2.0);
 		//Other.CollisionHeight = (Other.CollisionHeight / 2.0);
 		Other.DrawScale = (Other.DrawScale / 2.0);
-		Other.Mass = (Other.Mass / 4.0);
+		Other.Mass = (Other.Mass / 8.0);
+		SetPhysics(PHYS_Falling);
 		
 		if (Other.IsA('Pawn'))
 		{
 			Pawn(Other).BaseEyeHeight = (Pawn(Other).BaseEyeHeight / 2.0);
 			if (Other.IsA('ScriptedPawn'))
 			{
-				ScriptedPawn(Other).BaseAssHeight = (ScriptedPawn(Other).BaseAssHeight / 2.0);
 				ScriptedPawn(Other).JumpZ = (ScriptedPawn(Other).JumpZ / 1.25);
 				ScriptedPawn(Other).GroundSpeed = (ScriptedPawn(Other).GroundSpeed / 1.25);
 				ScriptedPawn(Other).WalkingSpeed = (ScriptedPawn(Other).WalkingSpeed / 1.25);
@@ -177,8 +169,8 @@ defaultproperties
      largeIcon=Texture'DeusExUI.Icons.LargeIconHideAGun'
      largeIconWidth=29
      largeIconHeight=47
-     Description="Back off! I've got a shrink gun. Who touched my ankle? Gun! Do you think I dont see? You dont think I feel your eyes like grubby little fingers, little children's fingers on my body? Back off! I will make you teensy."
-     beltDescription="ShrinkRay"
+     Description="Back off! I've got a shrink gun. Who touched my ankle? Gun! Do you think I don't see? You don't think I feel your eyes like grubby little fingers, little children's fingers on my body? Back off! I will make you teensy."
+     beltDescription="SHRINKRAY"
      Mesh=LodMesh'DeusExItems.HideAGunPickup'
      CollisionRadius=3.300000
      CollisionHeight=0.600000

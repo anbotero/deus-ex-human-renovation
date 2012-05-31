@@ -1,4 +1,89 @@
-﻿╒────────────╕
+﻿╒──────────────╕
+│1.30b2 -> 1.30│
+╘──────────────╛
+
++ Troopers in Maggie Chow's apartment are now better at staying quiet before you blow their cover (improvement upon Deus Ex 2.0 fix).
++ Hong Kong police turn hostile with less provocation (e.g. fewer shots fired by the player).
++ Added workarounds to prevent NPCs getting stuck inside certain doors.
++ Fixed Shifter fix to Hong Kong UC keypad, so the keypad screen no longer stays open indefinitely after punching in the code.
++ Fixed some out-of-order messages when taking objects from a corpse.
++ Fixed duplicate ammo pickup message when you grab multiple grenades of the same type off a corpse and don't have any in your inventory yet.
+
+╒───────────────╕
+│1.30b -> 1.30b2│
+╘───────────────╛
+
++ Restore previously-unused gray dissection chart image to an appropriate datacube near the end of the game.
++ Script fix forcing Stanton Dowd to be friendly in Hell's Kitchen (from Shifter).
++ Fixed script typo preventing John smith's body from appearing in the canal.
++ Gordon Quick and Chad are now always invincible, since the game always assumes they both live.
++ Set a flag on the Osgood & Son's front door in Mission 2 so that the terrorist inside won't feel the need to smash it to bits by running through it every time.
++ Fixed bug from a previous version that caused poison gas clouds to do no damage.
++ Fixed grenades blowing up prematurely if they hit a corpse.
++ Made thrown grenades cause a small amount of damage, so NPCs will react properly to getting hit by them.
++ Made gas grenades slightly noisy to NPCs instead of silent.
++ Slightly improved NPC willingness to avoid thrown grenades.
++ Fixed barrels transforming, and container contents spawning copies and resetting to default, if carried between maps.
++ Fixed decorations breaking apart twice instead of once if you land on them with enough speed.
++ Fixed weapons pretending to switch to a different ammo type even if you don't have any of the other ammo left.
++ Fixed firing sounds not working for certain projectile weapons (flamethrower, pepper spray).
++ Fixed mismatch between flamethrower's listed damage and projectile's actual damage, and decreased actual damage from initial fireball hit.
++ Fixed mismatch between flamethrower's listed range and how far the flames actually travel.
++ Fixed range mod not properly working on projectile-launching weapons, which is especially useful on the flamethrower and plasma launcher, as the description indicates.
++ Made the range mod affect maximum range as well as accurate range.
++ Fixed damage bonus in inventory screen from being incorrectly listed as half its actual value.
++ Fixed heavy weapon handling negating other speed penalties, and altered the speed penalty so each level of skill has an effect over the last, as the description indicates.
++ Improved upon the sabot fix, so now sabot rounds only fire a single slug, which also leaves a larger-than-normal bullethole. Total damage remains the same.
++ Made Damage indicators on breakable walls/doors show up properly for all weapons and projectiles.
++ Tweaked the weight of some NPCs (not that it matters much, but they were all set to default).
++ NPCs now take less damage from getting stomped at low speed, and stomp damage no longer gets the sneak-attack bonus.
++ Disabled autosave due to strange but reproducible crash bug.
++ Prevented overwriting of autosave information on the save screen, just like quicksaves (in case Autosave ever comes back).
++ Enemies will now notice you more if you bump into them, even while cloaked.
++ In single-player, made the targeting aug now only affects accuracy, not damage or recoil or anything else (from Shifter).
++ Made the standing-still accuracy bonus slightly less strong, but slightly slowed down its decay when you move as well.
++ Combat Strength aug affects hand-to-hand projectile speed (like it was apparently supposed to), range, and (to a smaller degree) damage. Skill is also a factor.
++ Fixed barrels from transforming on map change.
++ Corrected flammability flag for decorations based on what seemed reasonable (many wooden items were non-flammable).
++ Gave "comfy chairs" the ability to use their varied skins, just like the fix for sofas.
++ Breakable glass no longer gets reduced damage from bullets, or extra damage from projectiles/explosives.
++ Stuck projectiles (darts, throwing knives) fall properly when what they're attached to is broken, instead of flying off at strange speeds.
++ Fixed bug where disabling the muscle augmentation while against a wall would let you carry a large object forever even with the aug still off.
++ Pushing a stack of objects checks the weight of the entire stack, not just the one you're pushing.
++ Altered weights of some decorations, as well as push/carry weights and muscle augmentation effects, to make higher levels of the augmentation more desirable.
++ Moved some of the new athletics code from the Skill class to the SkillSwimming subclass.
++ Fix displayed count of ammo/credits picked up from corpses.
++ Fixed bug where corpses preplaced in the level (such as the trooper bodies near the docks in Mission 1) wouldn't give you any ammo if you already have the same weapon.
++ Inventory now spills out from blown-up NPCs and destroyed corpses instead of being completely destroyed (except for enemies that blow up naturally, like MIBs).
++ Fixed bug where sometimes you'd need to click a corpse twice before picking it up, even if it had lootable items.
++ Fixed bug where you couldn't pick up a one-use weapon (such as a LAW) from a corpse if you already had one.
++ If an NPC drops their weapon, you can now pick it up for as much ammo as his corpse would have, instead of no ammo at all.
++ Unique augmented NPCs are tougher now and do more damage, and Walton Simons finally gets one augmentation mentioned in his dissection chart image that he didn't have before. Some of these effects scale with difficulty.
++ "Thug" class NPCs ("thugs", JoJo Fine, Triad members, etc.) now have better accuracy than civilians, which was terrible indeed.
+
+╒─────────────╕
+│1.23 -> 1.30b│
+╘─────────────╛
+
++ Enemies/NPCs are now more accurate and more alert on higher difficulties.
++ Tougher NPCs (MJ12 Troopers, Commandos, MiBs/WiBs, some unique NPCs) are now more alert than weaker ones.
++ Targeting reticle calculation is finally fully correct and should reflect firing spread virtually perfectly.
++ Player accuracy is decreased a bit to offset the increase in effective accuracy introduced by the mod's circular bullet spread algorithms (firing angle offset is now 1.25 times what it was before).
++ The sneak-attack (point-blank from behind) bonus to damage has been reduced, and stunned/gassed enemies are susceptible to sneak attacks even from the front, and still take some extra damage from afar, since they can't defend themselves.
++ Improved sneak-attack logic: A stunned enemy was only ever susceptible to a smaller amount of bonus damage even from the back, and the sneak-attack bonus was applied to all damage types. Bonus damage is no longer applied to inapplicable things like explosions and poison, and fire damage (WP rocket, flamethrower) gets a smaller bonus.
++ The combat knife and crowbar each do 1 more damage (7 and 6 damage respectively), and the baton now does 5 damage instead of 7 when not sneak-attacking.
++ NPCs no longer suffer an accuracy penalty from having an unzoomed scoped weapon like players do, since they presumably never have it zoomed.
++ Planted explosives now give you at least one beep before exploding on Realistic instead of blowing up immediately.
+
+╒────────────╕
+│1.22 -> 1.23│
+╘────────────╛
+
++ Fixed a problem where the player wasn't triggering proximity explosives placed on maps. Now, at difficulties above Easy, there is a penalty to both the base amount of time you have to disarm a bomb (as in Shifter), and a penalty to the extra time afforded to you by higher Demolitions skill. Also, fixed Shifter implementation of this that caused Medium difficulty to act as if it were Easy difficulty.
++ Added autosave enable/disable button in "Controls" menu (thanks to DX_Blaster for the code/textures).
++ Added Italian language support (thanks to Alberto Giuffrida for this file/translation).
+
+╒────────────╕
 │1.21 -> 1.22│
 ╘────────────╛
 
@@ -14,7 +99,6 @@
 + You can no longer activated a charged pickup (hazmat, rebreather, etc.) if you already have one of that same type active, since there's no benefit to it and it might mislead players into believing that stacking them has greater effect
 + Charged pickups look transparent in your hand if they're active, because it was weird that it looked like you were still holding a hazmat suit while wearing it, but this still retains obvious visual indication of the item type
 + You can now throw a charged pickup even while it's active, but it'll (obviously) turn off in the process
-
 
 ╒──────────╕
 │1.1 -> 1.2│

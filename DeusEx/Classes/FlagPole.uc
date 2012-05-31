@@ -117,6 +117,7 @@ function bool Facelift(bool bOn)
 
 defaultproperties
 {
+     bFlammable=true
      FragType=Class'DeusEx.WoodFragment'
      ItemName="Flag Pole"
      Mesh=LodMesh'DeusExDeco.FlagPole'

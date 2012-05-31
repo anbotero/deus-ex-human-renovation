@@ -125,7 +125,7 @@ function FirstFrame()
 
 		// Set this flag so we only get in here once per mission.
 		flags.SetBool(flagName, True);
-	}
+	}		
 }
 
 // ----------------------------------------------------------------------

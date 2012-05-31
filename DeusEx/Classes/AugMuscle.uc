@@ -11,6 +11,19 @@ state Active
 Begin:
 }
 
+//G-Flex: we need a way to get the player to actually drop the damn item when possible if he can't initially
+//G-Flex: this should fix the bug where you can carry around large items with the aug inactive
+state DropPending
+{
+	Begin:
+		Player.DropDecoration();
+		if (Player.CarriedDecoration == None)
+			GoToState('Inactive');
+		//G-Flex: don't attempt to drop it every frame
+		Sleep(0.25);
+		GoTo('Begin');
+}
+
 function Deactivate()
 {
 	Super.Deactivate();
@@ -18,7 +31,38 @@ function Deactivate()
 	// check to see if the player is carrying something too heavy for him
 	if (Player.CarriedDecoration != None)
 		if (!Player.CanBeLifted(Player.CarriedDecoration))
-			Player.DropDecoration();
+		{
+			//G-Flex: drastic measures in case they can't drop it
+			GoToState('DropPending');
+		}
+}
+
+//G-Flex: override to account for new state
+function Activate()
+{
+	// can't do anything if we don't have it
+	if (!bHasIt)
+		return;
+
+	if (IsInState('Inactive') || IsInState('DropPending'))
+	{
+		// this block needs to be before bIsActive is set to True, otherwise
+		// NumAugsActive counts incorrectly and the sound won't work
+		Player.PlaySound(ActivateSound, SLOT_None);
+		if (Player.AugmentationSystem.NumAugsActive() == 0)
+			Player.AmbientSound = LoopSound;
+
+		bIsActive = True;
+
+		Player.ClientMessage(Sprintf(AugActivated, AugmentationName));
+
+		if (Player.bHUDShowAllAugs)
+			Player.UpdateAugmentationDisplayStatus(Self);
+		else
+			Player.AddAugmentationDisplay(Self);
+
+		GotoState('Active');
+	}
 }
 
 simulated function PreBeginPlay()

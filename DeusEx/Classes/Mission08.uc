@@ -33,12 +33,12 @@ function FirstFrame()
 	}
 	
 	//DX_Blaster: only Autosave if intended (->check User.ini setting)
-	if (Player.bAutoSave)
+	/*if (Player.bAutoSave)
 	{
 		if (dxInfo != None && !(player.IsInState('Dying')) && !(player.IsInState('Paralyzed')) && !(player.IsInState('Interpolating')) && 
 		player.dataLinkPlay == None && Level.Netmode == NM_Standalone)
 			player.SaveGame(-3, "Auto Save"); //Lork: Autosave after loading a new map... this saves lives!
-	}
+	}*/
 }
 
 // ----------------------------------------------------------------------
@@ -215,7 +215,10 @@ function Timer()
 			{
 				foreach AllActors(class'ScriptedPawn', pawn, 'StantonDowd')
 					if (pawn.IsA('StantonDowd'))
+					{
 						pawn.EnterWorld();
+						pawn.AttitudeToPlayer = ATTITUDE_Friendly; //== Make sure he talks to the player
+					}
 
 				flags.SetBool('MS_StantonUnhidden', True,, 9);
 			}
