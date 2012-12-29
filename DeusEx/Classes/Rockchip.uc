@@ -26,4 +26,6 @@ defaultproperties
      Mesh=LodMesh'DeusExItems.Rockchip1'
      CollisionRadius=0.000000
      CollisionHeight=0.000000
+	 //G-Flex: invincible
+	 bInvincible=True
 }

@@ -791,4 +791,5 @@ defaultproperties
      Health=10
      VisibilityThreshold=0.006000
      BindName="Animal"
+	 bAggressorsRelevant=False
 }

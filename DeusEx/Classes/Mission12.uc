@@ -15,6 +15,8 @@ function FirstFrame()
 	local ScriptedPawn pawn;
 	local SandraRenton Sandra;
 	local Robot bot;
+	
+	local BreakableWall bw;
 
 	if(localURL == "12_VANDENBERG_TUNNELS")
 	{
@@ -53,6 +55,19 @@ function FirstFrame()
 	{
 		flags.SetBool('RescueBegan', True,, 14);
 
+		if (!flags.GetBool('M12_PumpsExplosive'))
+		{
+			foreach AllActors(class'BreakableWall',bw)
+			{
+				if (bw.Event == 'support1')
+				{
+					bw.bExplosive = true;
+					bw.explosionDamage = 325;
+					bw.explosionRadius = 900;
+				}
+			}
+			flags.SetBool('M12_PumpsExplosive',True,, 14);
+		}
 		if (flags.GetBool('SandraWentToCalifornia'))
 		{
 			foreach AllActors(class'SandraRenton', Sandra)

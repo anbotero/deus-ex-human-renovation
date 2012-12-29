@@ -226,6 +226,8 @@ var         float   CloseCombatMult;  // multiplier for how often the NPC sprint
 //var(Stimuli) bool   bHateFutz;
 var(Stimuli) bool   bHateHacking;  // new
 var(Stimuli) bool   bHateWeapon;
+//G-Flex: So NPCs can react to alarms more appropriately
+var(Stimuli) bool   bHateAlarm;
 var(Stimuli) bool   bHateShot;
 var(Stimuli) bool   bHateInjury;
 var(Stimuli) bool   bHateIndirectInjury;  // new
@@ -418,6 +420,14 @@ var      float    runAnimMult;
 
 var()    vector    EnemyLastSeenAt; //A vector indicating the last position the enemy was sighted
 
+//G-Flex: Who has hurt us recently?
+//var      Pawn      Aggressors[16];
+var ListElement AggressorList;
+var	     bool      bNoAggressors;
+var(AI)  bool      bAggressorsRelevant;
+//G-Flex: Who have we recently forgiven?
+//var      Pawn      IgnoredPawns[16];
+var ListElement IgnoreList;
 //G-Flex: make attackPeriod/maxAttackPeriod an object variable so we can change it
 var      float    attackPeriod;
 var      float    maxAttackPeriod;
@@ -427,6 +437,13 @@ var      float    playerDiffRoot;
 //G-Flex: this way the augmented enemies can have more effective skill-based damage
 //G-Flex: this is expressed as a percentage bonus where 0.00 = no bonus
 var      float    DamageBonus;
+//G-Flex: for ease of controlling whether or not dudes blow up
+var()    bool     bExplodeOnDeath;
+
+//G-Flex: linked list of specific areas to care about (or exclude from caring about)
+var      GuardNode GuardSpot;
+//G-Flex: treat anything outside locations defined above as excluded
+var      bool     bGuardExclusively;
 
 var      name     lastState;
 var      Pawn     delayedInstigator;
@@ -457,6 +474,9 @@ function PreBeginPlay()
 	//  BaseEyeHeight = EyeHeight;
 	//
 	// This must be fixed after ECTS.
+	
+	//G-Flex: instantiate lists;
+	CreateAggressorList();
 
 	saveBaseEyeHeight = BaseEyeHeight;
 
@@ -528,6 +548,17 @@ function PostPostBeginPlay()
 	ConBindEvents();
 }
 
+//G-Flex: kill the heck out of the lists prior to traveling
+//G-Flex: otherwise the game crashes. Fun!!
+/*function PreTravel()
+{
+	AggressorList.ClearList();
+	CriticalDelete(AggressorList);
+	AggressorList = None;
+	log("pretravel called on " $ Name);
+	FamiliarName = "Complete Jackass";
+}*/
+
 // ----------------------------------------------------------------------
 // AdjustProperties()
 //  G-Flex: overload in subclasses to tweak their statistics
@@ -558,7 +589,7 @@ function AdjustDifficulty(float diff)
 	//G-Flex: don't change attackPeriod/maxAttackPeriod or SurprisePeriod here, that has other implications	
 }
 
-// ----------------------------------------------------------------------
+/*// ----------------------------------------------------------------------
 // Destroyed()
 // ----------------------------------------------------------------------
 
@@ -575,6 +606,27 @@ simulated function Destroyed()
 	if ((player != None) && (player.conPlay != None))
 		player.conPlay.ActorDestroyed(Self);
 	Super.Destroyed();
+}*/
+
+function Destroyed()
+{
+	DeleteAggressorList();
+	ConDestroyed();
+	Super.Destroyed();
+}
+
+simulated function ConDestroyed()
+{
+	local DeusExPlayer player;
+
+	// Pass a message to conPlay, if it exists in the player, that 
+	// this pawn has been destroyed.  This is used to prevent 
+	// bad things from happening in converseations.
+
+	player = DeusExPlayer(GetPlayerPawn());
+
+	if ((player != None) && (player.conPlay != None))
+		player.conPlay.ActorDestroyed(Self);
 }
 
 // ----------------------------------------------------------------------
@@ -617,6 +669,7 @@ function InitializePawn()
 		{
 			if (DeusExPlayer(GetPlayerPawn()) != None)
 			{
+				//Easy: 1.0, Medium: 1.5, Hard: 2.0, Realistic: 4.0
 				difficulty = DeusExPlayer(GetPlayerPawn()).combatDifficulty;
 				//Easy: 1.0000, Medium: 1.2247, Hard: 1.4142, Realistic: 2.0000
 				playerDiffRoot = sqrt(difficulty);
@@ -624,7 +677,7 @@ function InitializePawn()
 				AdjustDifficulty(difficulty);
 			}
 			else //bad, very bad
-				log("~~~ ERROR: ScriptedPawn can't find player in order to set difficulty for " $ BindName);
+				log("~~~ ERROR: ScriptedPawn can't find player in order to set difficulty for " $ Name);
 		}
 		bInitialized = true;
 
@@ -985,15 +1038,21 @@ function bool IsSeatValid(Actor checkActor)
 
 // ----------------------------------------------------------------------
 // SetDistress()
+//
+// G-Flex: added optional flag to preserve aggressor list
 // ----------------------------------------------------------------------
 
-function SetDistress(bool bDistress)
+function SetDistress(bool bDistress, optional bool bPreserveAggressors)
 {
 	bDistressed = bDistress;
 	if (bDistress && bEmitDistress)
 		AIStartEvent('Distress', EAITYPE_Visual);
 	else
+	{
+		if (!bPreserveAggressors)
+			ClearAggressors();
 		AIEndEvent('Distress', EAITYPE_Visual);
+	}
 }
 
 
@@ -1120,7 +1179,9 @@ function ReactToProjectiles(Actor projectileActor)
 	//G-Flex: edit this a bunch to get NPCs to react better to thrown explosives
 	local DeusExProjectile dxProjectile;
 	local Pawn             instigator;
-	local bool				bGrenade;
+	local bool             bGrenade;
+	
+	local name             reaction;
 	
 	bGrenade = projectileActor.IsA('ThrownProjectile');
 
@@ -1134,20 +1195,14 @@ function ReactToProjectiles(Actor projectileActor)
 				instigator = projectileActor.Instigator;
 			if (instigator != None)
 			{
+				reaction = PawnReaction(instigator, projectileActor.Location);
+				if (reaction == 'Suspicion')
+					IncreaseAgitation(instigator, 1.0);
 				lastState = GetStateName();
 				if (bFearProjectiles)
 					IncreaseFear(instigator, 2.0);
-				if (SetEnemy(instigator))
+				if ((reaction != 'Exclusion') && SetEnemy(instigator))
 				{
-					//SetDistressTimer();
-					//if (bGrenade)
-					//{
-					//	DeusExPlayer(GetPlayerPawn()).ClientMessage("SetEnemy -> avoidingprojectiles");
-					//	lastState = 'HandlingEnemy';
-					//	delayedInstigator = instigator;
-					//	SetState('AvoidingProjectiles');
-					//}
-					//else
 					SetDistressTimer();
 					if (bGrenade)
 					{
@@ -1156,7 +1211,7 @@ function ReactToProjectiles(Actor projectileActor)
 					}
 					HandleEnemy();
 				}
-				else if (bFearProjectiles && IsFearful())
+				else if ((reaction != 'Exclusion') && bFearProjectiles && IsFearful())
 				{
 					SetDistressTimer();
 					SetEnemy(instigator, , true);
@@ -1169,6 +1224,7 @@ function ReactToProjectiles(Actor projectileActor)
 					else
 						GotoState('Fleeing');
 				}
+				//G-Flex: still try to avoid harm even if it's in an exclusion area
 				else if (bAvoidHarm)
 					SetState('AvoidingProjectiles');
 			}
@@ -1877,6 +1933,223 @@ function UpdateReactionLevel(bool bRise, float deltaSeconds)
 	}
 }
 
+// ----------------------------------------------------------------------
+// CreateAggressorList()
+//
+// G-Flex: Make a new aggressor list if necessary
+// ----------------------------------------------------------------------
+
+function CreateAggressorList()
+{
+	if ((AggressorList == None) && bAggressorsRelevant)
+		AggressorList = new () class'ListElement';
+}
+
+// ----------------------------------------------------------------------
+// DeleteAggressorList()
+//
+// G-Flex: Completely destroy aggressor list
+// ----------------------------------------------------------------------
+
+function DeleteAggressorList()
+{
+	if (AggressorList != None)
+	{
+		AggressorList.ClearList();
+		AggressorList.Contents = None;
+		CriticalDelete(AggressorList);
+		AggressorList = None;
+	}
+	bNoAggressors = true;
+}
+
+// ----------------------------------------------------------------------
+// AddAggressor()
+//
+// G-Flex: Add the pawn hurting us to a list
+// G-Flex: return true if aggressor ends up on list, false otherwise
+// ----------------------------------------------------------------------
+
+function bool AddAggressor(Pawn newAggressor, optional bool bForce)
+{
+	if ((newAggressor != None) && ((newAggressor.Alliance != Alliance) || bForce) && bAggressorsRelevant)
+	{
+		if (AggressorList == None)
+			CreateAggressorList();
+		if (AggressorList != None)
+		{
+			AggressorList.AddContents(newAggressor);
+			bNoAggressors = false;
+			return true;
+		}
+		else
+			return false;
+	}
+	else
+		return false;
+}
+
+// ----------------------------------------------------------------------
+// ClearAggressors()
+//
+// G-Flex: Clears entire aggressor list
+// ----------------------------------------------------------------------
+
+function ClearAggressors()
+{
+	if (AggressorList != None)
+		AggressorList.ClearList();
+	bNoAggressors = true;
+	return;
+}
+
+// ----------------------------------------------------------------------
+// GetAggressor()
+//
+// G-Flex: See if an aggressor is on the list
+// ----------------------------------------------------------------------
+
+function bool GetAggressor(pawn checkAggressor)
+{
+	if ((AggressorList != None) && bAggressorsRelevant)
+	{
+		if (AggressorList.GetContents(checkAggressor) != None)
+			return true;
+		else
+			return false;
+	}
+	else
+		return false;
+}
+
+/*// ----------------------------------------------------------------------
+// CompareAggressors()
+//
+// G-Flex: Return true if the pawns share any aggressors
+// ----------------------------------------------------------------------
+
+function bool CommonAggressor(ScriptedPawn firstPawn, ScriptedPawn secondPawn)
+{
+	local int i;
+	if ((firstPawn.bNoAggressors) || (secondPawn.bNoAggressors))
+		return false;
+	for (i = 0; i < 16; i++)
+	{
+		if (secondPawn.GetAggressor(firstPawn.Aggressors[i]))
+			return true;
+	}
+	return false;
+}*/
+
+// ----------------------------------------------------------------------
+// UpdateIgnoreLists()
+//
+// G-Flex: Are we on roughly the same side of an ongoing fight? (hacky guesswork)
+// ----------------------------------------------------------------------
+
+// ----------------------------------------------------------------------
+// OnSameSide()
+//
+// G-Flex: Are we on roughly the same side of an ongoing fight? (hacky guesswork)
+// ----------------------------------------------------------------------
+
+function bool OnSameSide(Pawn checkPawn)
+{
+	local DeusExPlayer checkPlayer;
+	local ScriptedPawn checkSP, otherGuy;
+	local bool retVal;
+	
+	return false;
+	
+	//G-Flex: don't show mercy if we're already hostile
+	if (GetPawnAllianceType(checkPawn) == ALLIANCE_Hostile)
+		return false;
+	//G-Flex: don't care what they do if they're on the same alliance
+	else if (checkPawn.Alliance == Alliance)
+		return true;
+
+	checkSP = ScriptedPawn(checkPawn);
+	checkPlayer = DeusExPlayer(checkPawn);
+
+	//G-Flex: if it's another NPC, see if they share a common enemy
+	if (checkSP != None)
+	{
+		if (checkSP.Enemy != None)
+		{
+			if ((checkSP.Enemy == Enemy) || GetAggressor(checkSP.Enemy))
+				return true;
+		}
+		if (!checkSP.bNoAggressors)
+		{
+			//if (checkSP.GetAggressor(Enemy) || CommonAggressor(self, checkSP))
+			//	return true;
+		}
+	}
+	
+	retVal = false;
+	
+	//G-Flex: see if there's a fight going on
+	foreach RadiusActors(class'ScriptedPawn', otherGuy, (playerCheckDistance + Default.playerCheckDistance) / 2.0)
+	{
+		//G-Flex: if it's someone we aren't friends with and we haven't found a match yet
+		if (GetPawnAllianceType(otherGuy) != ALLIANCE_Friendly)
+		{
+			if (retVal == false)
+			{
+				//G-Flex: does this NPC have an enemy we like, or is it apparent self-defense?
+				if ((otherGuy.Enemy != None) && 
+				 ((GetPawnAllianceType(otherGuy.Enemy) == ALLIANCE_Friendly) ||
+				 (otherGuy.Enemy == checkPawn)))
+					retVal = true;
+			}
+		}
+		//G-Flex: if it's someone we're friends with and they've been attacked by the pawn
+		//else if (otherGuy.GetAggressor(checkPawn))
+			return false;
+	}
+	
+	return retVal;
+}
+
+// ----------------------------------------------------------------------
+// AddIgnoredPawn()
+//
+// G-Flex: Add grace period for a pawn
+// ----------------------------------------------------------------------
+
+function AddIgnoredPawn()
+{
+	local int i;
+	i = 0;
+}
+
+// ----------------------------------------------------------------------
+// PawnReaction()
+//
+// G-Flex: How do we treat this pawn's action? For use with GuardNodes
+// ----------------------------------------------------------------------
+
+function name PawnReaction(Pawn checkPawn, vector checkLocation)
+{
+	local name reaction;
+
+	if (GuardSpot == None)
+		return 'Normal';
+
+	reaction = GuardSpot.PawnReaction(checkPawn, checkLocation);
+	
+	//G-Flex: if we only care about our GuardNodes,
+	//G-Flex: don't care about stuff outside their areas
+	if (reaction == 'NotFound')
+	{
+		if (bGuardExclusively)
+			reaction = 'Exclusion';
+		else
+			reaction = 'Normal';
+	}
+	return reaction;
+}
+
 
 // ----------------------------------------------------------------------
 // CheckCycle() [internal use only]
@@ -1967,12 +2240,15 @@ function bool CheckEnemyPresence(float deltaSeconds,
 	local bool         bValidEnemy;
 	local bool         bPotentialEnemy;
 	local bool         bCheck;
+	
+	local name         reaction;
 
 	bValid  = false;
 	bCanSee = false;
-	if (bReactPresence && bLookingForEnemy && !bNoNegativeAlliances)
+	//G-Flex: we treat some people as enemies via GuardNodes
+	if (bReactPresence && bLookingForEnemy && (!bNoNegativeAlliances || (GuardSpot != None)))
 	{
-		if (PotentialEnemyAlliance != '')
+		if ((PotentialEnemyAlliance != '') || (GuardSpot != None))
 			bCheck = true;
 		else
 		{
@@ -1992,11 +2268,20 @@ function bool CheckEnemyPresence(float deltaSeconds,
 			lastCycle    = CycleIndex;
 			foreach CycleActors(Class'Pawn', candidate, CycleIndex)
 			{
-				bValidEnemy = IsValidEnemy(candidate);
-				if (!bValidEnemy && (PotentialEnemyTimer > 0))
-					if (PotentialEnemyAlliance == candidate.Alliance)
-						bPotentialEnemy = true;
-				if (bValidEnemy || bPotentialEnemy)
+				reaction = PawnReaction(candidate, candidate.Location);
+				if (reaction == 'Exclusion')
+				{
+					bValidEnemy = false;
+					bPotentialEnemy = false;
+				}
+				else
+				{
+					bValidEnemy = IsValidEnemy(candidate);
+					if (!bValidEnemy && (PotentialEnemyTimer > 0))
+						if (PotentialEnemyAlliance == candidate.Alliance)
+							bPotentialEnemy = true;
+				}
+				if (bValidEnemy || bPotentialEnemy || (reaction == 'Suspicion'))
 				{
 					count++;
 					bPlayer = candidate.IsA('PlayerPawn');
@@ -2012,6 +2297,8 @@ function bool CheckEnemyPresence(float deltaSeconds,
 								PotentialEnemyTimer    = 0;
 								bValidEnemy = IsValidEnemy(candidate);
 							}
+							else if (reaction == 'Suspicion')
+								IncreaseAgitation(candidate, 1.0);
 							if (bValidEnemy)
 							{
 								visibility += VisibilityThreshold;
@@ -2076,6 +2363,10 @@ function bool CheckBeamPresence(float deltaSeconds)
 	local DeusExPlayer player;
 	local Beam         beamActor;
 	local bool         bReactToBeam;
+	
+	local name         reaction;
+	
+	//G-Flex: modified to actually return a value, not that it's ever used
 
 	if (bReactPresence && bLookingForEnemy && (BeamCheckTimer <= 0) && (LastRendered() < 5.0))
 	{
@@ -2084,7 +2375,10 @@ function bool CheckBeamPresence(float deltaSeconds)
 		if (player != None)
 		{
 			bReactToBeam = false;
-			if (IsValidEnemy(player))
+			reaction = PawnReaction(player, player.Location);
+			if (reaction == 'Exclusion')
+				return false;
+			if (IsValidEnemy(player) || (reaction == 'Suspicion'))
 			{
 				foreach RadiusActors(Class'Beam', beamActor, 1200)
 				{
@@ -2107,6 +2401,7 @@ function bool CheckBeamPresence(float deltaSeconds)
 			}
 			if (bReactToBeam)
 				HandleSighting(player);
+			return bReactToBeam;
 		}
 	}
 }
@@ -2132,6 +2427,8 @@ function bool CheckCarcassPresence(float deltaSeconds)
 	local float         bestDist;
 	local float         maxCarcassDist;
 	local int           maxCarcassCount;
+	
+	local name          reaction;
 
 	if (bFearCarcass && !bHateCarcass && !bReactCarcass)  // Major hack!
 		maxCarcassCount = 1;
@@ -2208,26 +2505,30 @@ function bool CheckCarcassPresence(float deltaSeconds)
 						}
 						killer = bestKiller;
 					}
-					if (bHateCarcass)
+					reaction = PawnReaction(killer, carcass.Location);
+					if (reaction != 'Exclusion')
 					{
-						PotentialEnemyAlliance = KillerAlliance;
-						PotentialEnemyTimer    = 15.0;
-						bNoNegativeAlliances   = false;
-					}
-					if (bFearCarcass)
-						IncreaseFear(killer, 2.0);
+						if (bHateCarcass || (reaction == 'Suspicion'))
+						{
+							PotentialEnemyAlliance = KillerAlliance;
+							PotentialEnemyTimer    = 15.0;
+							bNoNegativeAlliances   = false;
+						}
+						if (bFearCarcass)
+							IncreaseFear(killer, 2.0);
 
-					if (bFearCarcass && IsFearful() && !IsValidEnemy(killer))
-					{
-						SetDistressTimer();
-						SetEnemy(killer, , true);
-						GotoState('Fleeing');
-					}
-					else
-					{
-						SetDistressTimer();
-						SetSeekLocation(killer, carcass.Location, SEEKTYPE_Carcass);
-						HandleEnemy();
+						if (bFearCarcass && IsFearful() && !IsValidEnemy(killer))
+						{
+							SetDistressTimer();
+							SetEnemy(killer, , true);
+							GotoState('Fleeing');
+						}
+						else
+						{
+							SetDistressTimer();
+							SetSeekLocation(killer, carcass.Location, SEEKTYPE_Carcass);
+							HandleEnemy();
+						}
 					}
 				}
 			}
@@ -2617,13 +2918,16 @@ function ReactToInjury(Pawn instigatedBy, Name damageType, EHitLocation hitPos)
 		if (bFearThisInjury)
 			IncreaseFear(instigatedBy, 2.0);
 
+		//G-Flex: make note of who hurt us
 		if (SetEnemy(instigatedBy))
 		{
+			AddAggressor(instigatedBy);
 			SetDistressTimer();
 			SetNextState('HandlingEnemy');
 		}
 		else if (bFearThisInjury && IsFearful())
 		{
+			AddAggressor(instigatedBy);
 			SetDistressTimer();
 			SetEnemy(instigatedBy, , true);
 			SetNextState('Fleeing');
@@ -2879,6 +3183,13 @@ function Carcass SpawnCarcass()
 	local FleshFragment chunk;
 	local int i;
 	local float size;
+	
+	//G-Flex; since ScriptedPawns in general can explode now
+	if (bExplodeOnDeath && !(bStunned))
+	{
+		Explode();
+		return None;
+	}
 
 	// if we really got blown up good, gib us and don't display a carcass
 	if ((Health < -100) && !IsA('Robot'))
@@ -2962,8 +3273,70 @@ function Carcass SpawnCarcass()
 }
 
 // ----------------------------------------------------------------------
+// Explode()
+// G-Flex: moved from MIB, AnnaNavarre, etc.
+// ----------------------------------------------------------------------
+
+function Explode()
+{
+	local SphereEffect sphere;
+	local ScorchMark s;
+	local ExplosionLight light;
+	local int i;
+	local float explosionDamage;
+	local float explosionRadius;
+
+	explosionDamage = 100;
+	explosionRadius = 256;
+
+	// alert NPCs that I'm exploding
+	AISendEvent('LoudNoise', EAITYPE_Audio, , explosionRadius*16);
+	PlaySound(Sound'LargeExplosion1', SLOT_None,,, explosionRadius*16);
+
+	// draw a pretty explosion
+	light = Spawn(class'ExplosionLight',,, Location);
+	if (light != None)
+		light.size = 4;
+
+	Spawn(class'ExplosionSmall',,, Location + 2*VRand()*CollisionRadius);
+	Spawn(class'ExplosionMedium',,, Location + 2*VRand()*CollisionRadius);
+	Spawn(class'ExplosionMedium',,, Location + 2*VRand()*CollisionRadius);
+	Spawn(class'ExplosionLarge',,, Location + 2*VRand()*CollisionRadius);
+
+	sphere = Spawn(class'SphereEffect',,, Location);
+	if (sphere != None)
+		sphere.size = explosionRadius / 32.0;
+
+	// spawn a mark
+	s = spawn(class'ScorchMark', Base,, Location-vect(0,0,1)*CollisionHeight, Rotation+rot(16384,0,0));
+	if (s != None)
+	{
+		s.DrawScale = FClamp(explosionDamage/30, 0.1, 3.0);
+		s.ReattachDecal();
+	}
+
+	// spawn some rocks and flesh fragments
+	for (i=0; i<explosionDamage/6; i++)
+	{
+		if (FRand() < 0.3)
+			spawn(class'Rockchip',,,Location);
+		else
+			spawn(class'FleshFragment',,,Location);
+	}
+
+	class'Tools'.static.NewHurtRadius(self, explosionDamage, explosionRadius, 'Exploded', explosionDamage*100, Location,
+		Vect(0,0,1));
+	
+	//G-Flex: uncomment to have them spill their inventory when they blow up
+	//G-Flex: not enabled by default because it's more tactically interesting when they don't
+	//G-Flex: plus it might have been part of intended game balance
+	//ExpelInventory();
+}
+
+// ----------------------------------------------------------------------
 // ExpelInventory()
-// G-Flex: so if the NPC is instagibbed, items won't be lost
+//
+// G-Flex: so if the NPC is gibbed, items won't be lost
 // G-Flex: uses some logic from SpawnCarcass()
 // ----------------------------------------------------------------------
 
@@ -5291,8 +5664,9 @@ function PlayDying(name damageType, vector hitLoc)
 	}
 
 	// don't scream if we are stunned
-	if ((damageType == 'Stunned') || (damageType == 'KnockedOut') ||
-	    (damageType == 'Poison') || (damageType == 'PoisonEffect'))
+	// G-Flex: Don't play KO sounds on robots
+	if (!IsA('Robot') && ((damageType == 'Stunned') || (damageType == 'KnockedOut') ||
+	    (damageType == 'Poison') || (damageType == 'PoisonEffect')))
 	{
 		bStunned = True;
 		if (bIsFemale)
@@ -5468,7 +5842,8 @@ function float LoudNoiseScore(actor receiver, actor sender, float score)
 		pawnSender = sender.Instigator;
 	if (pawnSender == None)
 		score = 0;
-	else if (!IsValidEnemy(pawnSender))
+	//G-Flex: also react if you have a guardspot
+	else if (!IsValidEnemy(pawnSender) && (GuardSpot == None))
 		score = 0;
 
 	return score;
@@ -5560,7 +5935,8 @@ function UpdateReactionCallbacks()
 	else
 		AIClearEventCallback('LoudNoise');
 
-	if ((bReactAlarm || bFearAlarm) && bLookingForAlarm)
+	//G-Flex: now with bonus bHateAlarm
+	if ((bReactAlarm || bFearAlarm || bHateAlarm) && bLookingForAlarm)
 		AISetEventCallback('Alarm', 'HandleAlarm');
 	else
 		AIClearEventCallback('Alarm');
@@ -5631,8 +6007,13 @@ function HandleFutz(Name event, EAIEventState state, XAIParams params)
 {
 	// React
 
+	local name reaction;
 	if (state == EAISTATE_Begin || state == EAISTATE_Pulse)
-		ReactToFutz();  // only players can futz
+	{
+		reaction = PawnReaction(GetPlayerPawn(),params.bestActor.Location);
+		if (reaction != 'Exclusion')
+			ReactToFutz();  // only players can futz
+	}
 }
 
 
@@ -5645,13 +6026,18 @@ function HandleHacking(Name event, EAIEventState state, XAIParams params)
 	// Fear, Hate
 
 	local Pawn pawnActor;
+	
+	local name reaction;
 
 	if (state == EAISTATE_Begin || state == EAISTATE_Pulse)
 	{
 		pawnActor = GetPlayerPawn();
 		if (pawnActor != None)
 		{
-			if (bHateHacking)
+			reaction = PawnReaction(pawnActor, params.bestActor.Location);
+			if (reaction == 'Exclusion')
+				return;
+			else if (bHateHacking || (reaction == 'Suspicion'))
 				IncreaseAgitation(pawnActor, 1.0);
 			if (bFearHacking)
 				IncreaseFear(pawnActor, 0.51);
@@ -5682,14 +6068,23 @@ function HandleWeapon(Name event, EAIEventState state, XAIParams params)
 	// Fear, Hate
 
 	local Pawn pawnActor;
+	local bool bSameSide;
 
 	if (state == EAISTATE_Begin || state == EAISTATE_Pulse)
 	{
 		pawnActor = InstigatorToPawn(params.bestActor);
 		if (pawnActor != None)
 		{
+			//G-Flex: stop if the sender can't be seen and this is a visual reaction
+			if ((AICanSee(pawnActor, ComputeActorVisibility(pawnActor), true, true, true, true) <= 0)
+			 && (params.Volume < 0.00001))
+				return;
 			if (bHateWeapon)
-				IncreaseAgitation(pawnActor);
+			{
+				bSameSide = OnSameSide(pawnActor);
+				if (!bSameSide)
+					IncreaseAgitation(pawnActor);
+			}
 			if (bFearWeapon)
 				IncreaseFear(pawnActor, 1.0);
 
@@ -5703,7 +6098,7 @@ function HandleWeapon(Name event, EAIEventState state, XAIParams params)
 					SetEnemy(pawnActor, , true);
 					GotoState('Fleeing');
 				}
-				else if (pawnActor.bIsPlayer)
+				else if ((pawnActor.bIsPlayer) && !bSameSide)
 					ReactToFutz();
 			}
 		}
@@ -5720,13 +6115,28 @@ function HandleShot(Name event, EAIEventState state, XAIParams params)
 	// React, Fear, Hate
 
 	local Pawn pawnActor;
+	
+	local name reaction;
+	local bool bHateIt;
+	local bool bSameSide;
 
 	if (state == EAISTATE_Begin || state == EAISTATE_Pulse)
 	{
 		pawnActor = InstigatorToPawn(params.bestActor);
 		if (pawnActor != None)
 		{
+			reaction = PawnReaction(pawnActor, params.BestActor.Location);
+			if (reaction == 'Exclusion')
+				return;
+			//G-flex: debug debug
+			//DeusExPlayer(GetPlayerPawn()).ClientMessage(Name $ " shot volume: " $ params.Volume $ ", shot score: " $ params.Score $ ", distance: " $ VSize(params.bestActor.Location - Location));
 			if (bHateShot)
+			{
+				bSameSide = OnSameSide(pawnActor);
+				if (!bSameSide)
+					IncreaseAgitation(pawnActor);
+			}
+			else if (reaction == 'Suspicion')
 				IncreaseAgitation(pawnActor);
 			if (bFearShot)
 				IncreaseFear(pawnActor, 1.0);
@@ -5741,7 +6151,7 @@ function HandleShot(Name event, EAIEventState state, XAIParams params)
 				SetEnemy(pawnActor, , true);
 				GotoState('Fleeing');
 			}
-			else if (pawnActor.bIsPlayer)
+			else if (pawnActor.bIsPlayer && !bSameSide)
 				ReactToFutz();
 		}
 	}
@@ -5758,6 +6168,10 @@ function HandleLoudNoise(Name event, EAIEventState state, XAIParams params)
 
 	local Actor bestActor;
 	local Pawn  instigator;
+	
+	//G-Flex: debug debug
+	//G-Flex: debugging GuardNode junk
+	local name reaction;
 
 	if (state == EAISTATE_Begin || state == EAISTATE_Pulse)
 	{
@@ -5769,8 +6183,17 @@ function HandleLoudNoise(Name event, EAIEventState state, XAIParams params)
 				instigator = bestActor.Instigator;
 			if (instigator != None)
 			{
-				if (IsValidEnemy(instigator))
+				//G-flex: debug debug
+				//DeusExPlayer(GetPlayerPawn()).ClientMessage(Name $ " noise volume: " $ params.Volume $ ", noise score: " $ params.Score $ ", distance: " $ VSize(params.bestActor.Location - Location));
+				reaction = PawnReaction(instigator, bestActor.Location);
+				//DeusExPlayer(GetPlayerPawn()).ClientMessage(Name $ " noise bestActor: " $ params.bestActor.Name $ ", instigator: " $instigator.Name);
+				if (reaction == 'Exclusion')
+					return;
+				//if (IsValidEnemy(instigator))
+				if (IsValidEnemy(instigator) || (reaction == 'Suspicion'))
 				{
+					//if (reaction == 'Suspicion')
+						//IncreaseAgitation(instigator, 1.0);
 					SetSeekLocation(instigator, bestActor.Location, SEEKTYPE_Sound);
 					HandleEnemy();
 				}
@@ -5803,6 +6226,7 @@ function HandleProjectiles(Name event, EAIEventState state, XAIParams params)
 function HandleAlarm(Name event, EAIEventState state, XAIParams params)
 {
 	// React, Fear
+	//G-Flex: also Hate
 
 	local AlarmUnit      alarm;
 	local LaserTrigger   laser;
@@ -5810,6 +6234,8 @@ function HandleAlarm(Name event, EAIEventState state, XAIParams params)
 	local Computers      computer;
 	local Pawn           alarmInstigator;
 	local vector         alarmLocation;
+	
+	local name           reaction;
 
 	if (state == EAISTATE_Begin || state == EAISTATE_Pulse)
 	{
@@ -5840,7 +6266,13 @@ function HandleAlarm(Name event, EAIEventState state, XAIParams params)
 			alarmInstigator = GetPlayerPawn();  // player is implicit for computers
 			alarmLocation   = computer.Location;
 		}
+		
+		reaction = PawnReaction(alarmInstigator, alarmInstigator.Location);
+		if (reaction == 'Exclusion')
+			return;
 
+		if (bHateAlarm || (reaction == 'Suspicion'))
+			IncreaseAgitation(alarmInstigator, 2.0);
 		if (bFearAlarm)
 		{
 			IncreaseFear(alarmInstigator, 2.0);
@@ -5890,8 +6322,12 @@ function HandleDistress(Name event, EAIEventState state, XAIParams params)
 	local name         stateName;
 	local bool         bAttacking;
 	local bool         bFleeing;
+	
+	local name         reaction;
+	local bool         bMadAboutIt;
 
 	bAttacking = false;
+	bMadAboutIt = false;
 	seeTime    = 0;
 
 	if (state == EAISTATE_Begin || state == EAISTATE_Pulse)
@@ -5923,21 +6359,27 @@ function HandleDistress(Name event, EAIEventState state, XAIParams params)
 				distressor       = distressee.Enemy;
 				distressorPlayer = DeusExPlayer(distressor);
 				distressorPawn   = ScriptedPawn(distressor);
+				if (distressor != None)
+					reaction = PawnReaction(distressor, distressee.Location);
+				if (reaction == 'Exclusion')
+					return;
+				else if ((bHateDistress && !OnSameSide(distressor)) || (reaction == 'Suspicion'))
+					bMadAboutit = true;
 				if (distressorPawn != None)
 				{
-					if (bHateDistress || (distressorPawn.GetPawnAllianceType(distressee) == ALLIANCE_Hostile))
+					if (bMadAboutit || (distressorPawn.GetPawnAllianceType(distressee) == ALLIANCE_Hostile))
 						bDistressorValid = true;
 				}
 				else if (distresseePawn != None)
 				{
-					if (bHateDistress || (distresseePawn.GetPawnAllianceType(distressor) == ALLIANCE_Hostile))
+					if (bMadAboutit || (distresseePawn.GetPawnAllianceType(distressor) == ALLIANCE_Hostile))
 						bDistressorValid = true;
 				}
 
 				// Finally, react
 				if (bDistressorValid)
 				{
-					if (bHateDistress)
+					if (bMadAboutit)
 						IncreaseAgitation(distressor, 1.0);
 					if (SetEnemy(distressor, seeTime))
 					{
@@ -7706,7 +8148,11 @@ function Tick(float deltaTime)
 		{
 			// Don't allow radius-based convos to interupt other conversations!
 			if ((player != None) && (GetStateName() != 'Conversation') && (GetStateName() != 'FirstPersonConversation'))
-				player.StartConversation(Self, IM_Radius);
+			{
+				//G-Flex: no spontaneous conversations if you're invisible!
+				if (ComputeActorVisibility(player) > 0.0)
+					player.StartConversation(Self, IM_Radius);
+			}
 		}
 
 		if (CheckEnemyPresence(deltaTime, bCheckPlayer, bCheckOther))
@@ -8427,6 +8873,8 @@ function Bump(actor Other)
 	local ScriptedPawn avoidPawn;
 	local DeusExPlayer dxPlayer;
 	local bool         bTurn, bJustTurned;
+	
+	local name         reaction;
 
 	// Handle futzing and projectiles
 	if (Other.Physics == PHYS_Falling)
@@ -8523,6 +8971,9 @@ function Bump(actor Other)
 	{
 		AvoidBumpTimer   = 0.2;
 		
+		reaction = PawnReaction(dxPlayer, dxPlayer.Location);
+		if (reaction == 'Suspicion')
+			IncreaseAgitation(dxPlayer, 1.0);
 		if ((IsValidEnemy(dxPlayer)) && bLookingForEnemy)
 		{
 			//G-Flex: if they're already in the seeking state, alert to player's presence
@@ -8731,14 +9182,36 @@ function AlterDestination()
 
 function Frob(Actor Frobber, Inventory frobWith)
 {
+	local DeusExPlayer dxPlayer;
+
 	Super.Frob(Frobber, frobWith);
 
 	// Check to see if the Frobber is the player.  If so, then
 	// check to see if we need to start a conversation.
 
-	if (DeusExPlayer(Frobber) != None)
+	dxPlayer = DeusExPlayer(Frobber);
+	if (dxPlayer != None)
 	{
-		if (DeusExPlayer(Frobber).StartConversation(Self, IM_Frob))
+		//G-Flex: if we'd be suspicious of them here, get mad instead of talking
+		if (PawnReaction(dxPlayer, dxPlayer.Location) == 'Suspicion')
+		{
+			IncreaseAgitation(dxPlayer, 1.0);
+			if (bLookingForEnemy && IsValidEnemy(dxPlayer))
+			{
+				if (IsInState('Seeking'))
+				{
+					if (SetEnemy(dxPlayer))
+						SetDistressTimer();
+				}
+				else
+				{
+					SetSeekLocation(dxPlayer, dxPlayer.Location, SEEKTYPE_Sight);
+					SeekLevel += 2; //hack
+				}
+				HandleEnemy();
+			}
+		}
+		else if (dxPlayer.StartConversation(Self, IM_Frob))
 		{
 			ConversationActor = Pawn(Frobber);
 			return;
@@ -10778,6 +11251,10 @@ State Seeking
 	{
 		local Actor bestActor;
 		local Pawn  instigator;
+		
+		//G-Flex: debug debug
+		//G-Flex: debugging GuardNode junk
+		local name reaction;
 
 		if (state == EAISTATE_Begin || state == EAISTATE_Pulse)
 		{
@@ -10789,7 +11266,14 @@ State Seeking
 					instigator = bestActor.Instigator;
 				if (instigator != None)
 				{
-					if (IsValidEnemy(instigator))
+					//G-flex: debug debug
+				//DeusExPlayer(GetPlayerPawn()).ClientMessage(Name $ " noise volume: " $ params.Volume $ ", noise score: " $ params.Score $ ", distance: " $ VSize(params.bestActor.Location - Location));
+				//DeusExPlayer(GetPlayerPawn()).ClientMessage(Name $ " noise bestActor: " $ params.bestActor.Name $ ", instigator: " $instigator.Name);
+					reaction = PawnReaction(instigator, bestActor.Location);
+					if (reaction == 'Exclusion')
+						return;
+					//if (IsValidEnemy(instigator))
+					if (IsValidEnemy(instigator) || (reaction == 'Suspicion'))
 					{
 						SetSeekLocation(instigator, bestActor.Location, SEEKTYPE_Sound);
 						destLoc = LastSeenPos;
@@ -11026,6 +11510,8 @@ State Fleeing
 				IncreaseAgitation(instigatedBy);
 			if (bFearThisInjury)
 				IncreaseFear(instigatedBy, 2.0);
+			
+			AddAggressor(instigatedBy);
 
 			oldEnemy = Enemy;
 
@@ -11040,7 +11526,9 @@ State Fleeing
 				}
 			}
 			else
+			{
 				SetEnemy(instigatedBy, , true);
+			}
 
 			if (bAttack)
 			{
@@ -11507,10 +11995,16 @@ State Attacking
 				IncreaseFear(instigatedBy, 2.0);
 
 			if (ReadyForNewEnemy())
+			{
 				SetEnemy(instigatedBy);
+			}
+
+			AddAggressor(instigatedBy);
 
 			if (ShouldFlee())
 			{
+				//G-Flex: we should be afraid
+				IncreaseFear(Enemy, 2.0);
 				SetDistressTimer();
 				PlayCriticalDamageSound();
 				if (RaiseAlarm == RAISEALARM_BeforeFleeing)
@@ -11726,6 +12220,8 @@ State Attacking
 		}
 		if (bCriticalDamage || bOutOfAmmo)
 		{
+			//G-Flex: we should be afraid
+			IncreaseFear(Enemy, 2.0);
 			if (bPlaySound)
 			{
 				if (bCriticalDamage)
@@ -12247,7 +12743,7 @@ State Alerting
 		bStasis = False;
 		BlockReactions();
 		SetupWeapon(false);
-		SetDistress(false);
+		SetDistress(false, true);
 		EnemyReadiness = 1.0;
 		ReactionLevel  = 1.0;
 		EnableCheckDestLoc(false);
@@ -13336,6 +13832,8 @@ state Burning
 
 		if (health > 0)
 		{
+			AddAggressor(instigatedBy);
+
 			if (enemy != instigatedBy)
 			{
 				SetEnemy(instigatedBy);
@@ -14025,6 +14523,7 @@ state TakingHit
 	function TakeDamage(int Damage, Pawn instigatedBy, Vector hitlocation, 
 	                    Vector momentum, name damageType)
 	{
+		AddAggressor(instigatedBy);
 		TakeDamageBase(Damage, instigatedBy, hitlocation, momentum, damageType, false);
 	}
 
@@ -14640,6 +15139,7 @@ defaultproperties
      bAvoidHarm=True
      HarmAccuracy=0.800000
      CloseCombatMult=0.300000
+	 bHateAlarm=False
      bHateShot=True
      bHateInjury=True
      bReactPresence=True
@@ -14677,6 +15177,7 @@ defaultproperties
      InitialInventory(5)=(Count=1)
      InitialInventory(6)=(Count=1)
      InitialInventory(7)=(Count=1)
+	 bNoAggressors=True
      bSpawnBubbles=True
      bWalkAround=True
      BurnPeriod=30.000000
@@ -14699,7 +15200,9 @@ defaultproperties
      AIHorizontalFov=160.000000
      AspectRatio=2.300000
      bForceStasis=True
+	 bExplodeOnDeath=False
      BindName="ScriptedPawn"
      FamiliarName="DEFAULT FAMILIAR NAME - REPORT THIS AS A BUG"
      UnfamiliarName="DEFAULT UNFAMILIAR NAME - REPORT THIS AS A BUG"
+	 bAggressorsRelevant=True
 }

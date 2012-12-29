@@ -15,6 +15,9 @@ function FirstFrame()
 	local BlackHelicopter chopper;
 	local Barrel1 barrel;
 	
+	local NanoKey key;
+	local name songname, tname;
+	
 	Super.FirstFrame();
 
 	if (localURL == "09_NYC_SHIP")
@@ -43,14 +46,52 @@ function FirstFrame()
 			foreach AllActors(class'BlackHelicopter', chopper, 'BlackHelicopter')
 				chopper.EnterWorld();
 		}
+		//G-Flex: fix a couple key/lock problems
+		if (!flags.GetBool('09_KeysFixed'))
+		{
+			foreach AllActors(class'DeusExMover', M)
+			{
+				if (M.KeyIDNeeded == 'WeaponsWarehouse')
+					M.KeyIDNeeded = 'WeaponWarehouse';
+			}
+			foreach AllActors(class'NanoKey', key, 'SupplyRoom')
+				key.KeyID = key.tag;
+			flags.SetBool('09_KeysFixed',true,,10);
+		}
 	}
-	//G-Flex: make that barrel visible
 	else if (localURL == "09_NYC_GRAVEYARD")
 	{
-		foreach AllActors(class'Barrel1', barrel, 'BarrelOFun')
+		//G-Flex: set a music track as with the M08 streets GOTY edition fix
+		if(flags.GetName('Song_Name1') != 'NavalBase_Music' || flags.GetName('Song_Name2') != 'NavalBase_Music')
 		{
-			barrel.bHidden = false;
-			barrel.SetCollision(true, true, true);
+			//== For the users that have issues with the music in this map, give the backup method something to work with
+			songname = DeusExRootWindow(Player.rootWindow).StringToName("NavalBase_Music");
+	
+			tname = DeusExRootWindow(Player.rootWindow).StringToName("Song_Name1");
+			flags.SetName(tname, songname);
+			flags.SetExpiration(tname, FLAG_Name, 9);
+	
+			tname = DeusExRootWindow(Player.rootWindow).StringToName("Song_Name2");
+			flags.SetName(tname, songname);
+			flags.SetExpiration(tname, FLAG_Name, 9);
+		}
+		//G-Flex: remove invisible barrel, make EMP generator explosive
+		if (!flags.GetBool('09_EMP_Stuff'))
+		{
+			foreach AllActors(class'Barrel1', barrel, 'BarrelOFun')
+			{
+				barrel.Destroy();
+			}
+			foreach AllActors(class'DeusExMover', M)
+			{
+				if (M.event == 'EMOff')
+				{
+					M.bExplosive = true;
+					M.explosionDamage = 150;
+					M.explosionRadius = 224;
+				}
+			}
+			flags.SetBool('09_EMP_Stuff',true,,10);
 		}
 	}
 	

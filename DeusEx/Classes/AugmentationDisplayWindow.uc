@@ -313,6 +313,8 @@ function Tick(float deltaTime)
 		{
 			winZoom.AskParentForReconfigure();
 			winZoom.Lower();
+			winZoom.SetViewportActor(Player, true, true);
+			SetZoomProperties(lastTarget);
 		}
 	}
 
@@ -991,7 +993,9 @@ function DrawTargetAugmentation(GC gc)
 	// let there be a 0.5 second delay before losing a target
 	if (target == None)
 	{
-		if ((Player.Level.TimeSeconds - lastTargetTime < 0.5) && IsActorValid(lastTarget))
+		//G-Flex: stop tracking if the enemy is too far outside your field of view
+		if ((Player.Level.TimeSeconds - lastTargetTime < 0.75) && IsActorValid(lastTarget) &&
+			(!bTargetActive || ((Vector(Player.ViewRotation) dot Normal(lastTarget.Location - Player.Location)) > cos((Player.DesiredFOV * 0.0174533) * 0.55))))
 		{
 			target = lastTarget;
 			bUseOldTarget = True;
@@ -1000,6 +1004,11 @@ function DrawTargetAugmentation(GC gc)
 		{
 			RemoveActorRef(lastTarget);
 			lastTarget = None;
+			if (winZoom != None)
+			{
+				winZoom.Destroy();
+				winZoom = None;
+			}
 		}
 	}
 	else
@@ -1085,12 +1094,8 @@ function DrawTargetAugmentation(GC gc)
 				{
 					if (winZoom != None)
 					{
-						mult = (target.CollisionRadius + target.CollisionHeight);
-						v1 = Player.Location;
-						v1.Z += Player.BaseEyeHeight;
-						v2 = 1.5 * Player.Normal(target.Location - v1);
-						winZoom.SetViewportLocation(target.Location - mult * v2);
-						winZoom.SetWatchActor(target);
+						//G-Flex: new method in new function for setting the zoom window properties
+						SetZoomProperties(target);
 					}
 					// window construction now happens in Tick()
 				}
@@ -1274,6 +1279,32 @@ function DrawTargetAugmentation(GC gc)
 
 	// set the crosshair colors
 	DeusExRootWindow(player.rootWindow).hud.cross.SetCrosshairColor(crossColor);
+}
+
+//G-Flex: new method, this uses the player's eyes as the viewpoint and zooms dynamically. Wow!!!
+function SetZoomProperties(actor other)
+{
+	local Vector v1;
+	local float width, dist;
+	
+	if (winZoom == None)
+		return;
+	v1 = Player.Location;
+	v1.Z += Player.BaseEyeHeight;
+	//mult = (target.CollisionRadius + target.CollisionHeight);
+	dist = VSize(v1 - other.Location);
+	//winZoom.SetViewportActor(Player, true, true);
+	if (other.IsA('ScriptedPawn') && !other.IsA('Robot') && !other.IsA('Animal'))
+	{
+		width = 2.00 + 1.00 * FMax(other.CollisionHeight, other.CollisionRadius);
+		winZoom.SetWatchActor(other, true);
+	}
+	else
+	{
+		width = 5.00 + 1.50 * FMax(other.CollisionHeight, other.CollisionRadius);
+		winZoom.SetWatchActor(other, false);
+	}
+	winZoom.SetFOVAngle(FClamp(2.00 * 57.2957795 * atan(width / dist), 3.0, Player.DefaultFOV));
 }
 
 // ----------------------------------------------------------------------

@@ -756,14 +756,17 @@ state Exploding
 				}
 			}
 		}
-		HurtRadius
+		class'Tools'.static.NewHurtRadius
 		(
+			self,
 			(2 * explosionDamage) / gradualHurtSteps,
 			(explosionRadius / gradualHurtSteps) * gradualHurtCounter,
 			'Exploded',
 			(explosionDamage / gradualHurtSteps) * 100,
-			Location
+			Location,
+			Vect(0,0,1)
 		);
+		
 		if (++gradualHurtCounter >= gradualHurtSteps)
 			Destroy();
 	}
@@ -821,7 +824,7 @@ auto state Active
 			//G-Flex: if underwater or non-flammable, do less damage
 			else
 			{
-				Damage *= 0.3333;
+				Damage = class'Tools'.static.Ceiling(Damage * 0.3333);
 			}
 		}
 

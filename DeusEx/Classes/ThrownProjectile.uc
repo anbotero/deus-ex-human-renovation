@@ -510,6 +510,15 @@ auto simulated state Flying
 		local DeusExPlayer player;
 		local Pawn curPawn;
 		local float dist;
+		
+		//G-Flex: from DeusExProjectile
+		//WallNormal = HitNormal;
+		if (WallNormal == Vect(0,0,0))
+		{
+			WallNormal = HitNormal;
+			if (WallNormal == Vect(0,0,0))
+				WallNormal = Vect(0,0,1);
+		}
 
 		// flash the screen white based on how far away the explosion is
 	
@@ -570,6 +579,9 @@ auto simulated state Flying
 		local float   volume;
 		
 		speed = VSize(Velocity);
+		
+		//G-Flex: from DeusExProjectile
+		WallNormal = HitNormal;
 		
 		//G-Flex: try to damage the NPC if it's not a robot
 		if ((HitWall.IsA('ScriptedPawn')) && !(HitWall.IsA('Robot')) && (speed > 400))

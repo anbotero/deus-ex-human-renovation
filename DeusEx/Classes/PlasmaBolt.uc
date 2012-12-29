@@ -44,8 +44,12 @@ simulated function PreBeginPlay()
 {
 	Super.PreBeginPlay();
 
-	Damage = mpDamage;
-	blastRadius = mpBlastRadius;
+	//G-Flex: original devs forgot to actually check for multiplayer here
+	if ( Level.NetMode != NM_Standalone )
+	{
+		Damage = mpDamage;
+		blastRadius = mpBlastRadius;
+	}
 }
 
 simulated function PostNetBeginPlay()
@@ -92,7 +96,8 @@ defaultproperties
      mpDamage=8.000000
      mpBlastRadius=300.000000
      bExplodes=True
-     blastRadius=128.000000
+	 //G-Flex: was 128.000000
+     blastRadius=256.000000
      DamageType=Burned
      AccurateRange=14400
      maxRange=24000
@@ -101,8 +106,8 @@ defaultproperties
      ItemArticle="a"
      speed=1500.000000
      MaxSpeed=1500.000000
-	 //G-Flex: Damage was 50.000000
-     Damage=55.000000
+	 //G-Flex: was 50.000000
+     Damage=20.000000
      MomentumTransfer=5000
      ImpactSound=Sound'DeusExSounds.Weapons.PlasmaRifleHit'
      ExplosionDecal=Class'DeusEx.ScorchMark'

@@ -34,6 +34,8 @@ defaultproperties
      bCanHaveScope=True
      ScopeFOV=25
      bCanHaveLaser=True
+	 //G-Flex: is set for minicrossbow, so why not this
+	 bHasSilencer=True
      recoilStrength=0.100000
      mpReloadTime=1.500000
      mpHitDamage=12

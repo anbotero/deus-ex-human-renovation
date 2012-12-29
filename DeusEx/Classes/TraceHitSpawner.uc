@@ -86,6 +86,9 @@ simulated function SpawnEffects(Actor Other, float Damage)
    //SetTimer(0.1,False);
    if (Level.NetMode == NM_DedicatedServer)
       return;
+   //G-Flex: fix Accessed None errors
+   if (Other == None)
+      return;
 
 	if (bPenetrating && !bHandToHand && !Other.IsA('DeusExDecoration'))
 	{
@@ -140,13 +143,15 @@ simulated function SpawnEffects(Actor Other, float Damage)
    if ((!bHandToHand) && bInstantHit && bPenetrating)
 	{
 	    hole = spawn(class'BulletHole', Other,, Location+Vector(Rotation), Rotation);
-		if (DamageType == 'Sabot')
+		if (hole != None)
 		{
-			hole.DrawScale = 0.200;
-			hole.ReattachDecal();
+			hole.RemoteRole = ROLE_None;
+			if (DamageType == 'Sabot')
+			{
+				hole.DrawScale = 0.200;
+				hole.ReattachDecal();
+			}
 		}
-      if (hole != None)      
-         hole.RemoteRole = ROLE_None;
 		//G-Flex: similar checks to above so sparks don't spawn on people/bodies
 		if ( !Other.IsA('DeusExPlayer') && !Other.IsA('DeusExCarcass') && (!Other.IsA('ScriptedPawn') || Other.IsA('Robot'))) // Sparks on people look bad
 		{

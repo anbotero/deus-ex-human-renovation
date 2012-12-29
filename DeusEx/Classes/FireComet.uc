@@ -46,4 +46,6 @@ defaultproperties
      CollisionRadius=0.000000
      CollisionHeight=0.000000
      bBounce=False
+	 //G-Flex: invincible
+	 bInvincible=True
 }

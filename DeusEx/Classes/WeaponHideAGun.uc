@@ -11,7 +11,8 @@ defaultproperties
      Concealability=CONC_All
      ShotTime=0.300000
      reloadTime=0.000000
-     HitDamage=55
+	 //G-Flex: to match new projectile
+     HitDamage=30
      maxRange=24000
      AccurateRange=14400
 	 //G-Flex: BaseAccuracy was 0.000000
@@ -23,7 +24,8 @@ defaultproperties
      ReloadCount=0
      PickupAmmoCount=0
      FireOffset=(X=-20.000000,Y=10.000000,Z=16.000000)
-     ProjectileClass=Class'DeusEx.PlasmaBolt'
+	 //G-Flex: use new projectile
+     ProjectileClass=Class'DeusEx.PlasmaBoltMini'
      shakemag=50.000000
      FireSound=Sound'DeusExSounds.Weapons.PlasmaRifleFire'
      SelectSound=Sound'DeusExSounds.Weapons.HideAGunSelect'

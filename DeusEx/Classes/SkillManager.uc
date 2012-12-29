@@ -226,10 +226,6 @@ function ResetSkills()
 {
 	local Skill aSkill;
 
-	//G-Flex: You should know the drill by now.
-	local float swimLevel;
-	local float speedLevel;
-
 	aSkill = FirstSkill;
 	while(aSkill != None)
 	{
@@ -237,25 +233,8 @@ function ResetSkills()
 		aSkill = aSkill.next;
 	}
 
-	//G-Flex: This is an awful hack.
-	if (Player.AugmentationSystem != None)
-	{
-		speedLevel = FMax(1.0,Player.AugmentationSystem.GetAugLevelValue(class'AugSpeed'));
-	}
-	else
-	{
-		speedLevel = 1.0;
-	}
-		if (Player.SkillSystem != None)
-	{
-		swimLevel = Player.SkillSystem.GetSkillLevelValue(class'SkillSwimming');
-	}
-	else
-	{
-		swimLevel = 1.0;
-	}
-
-	Player.JumpZ = Player.Default.JumpZ * (0.20 * swimLevel - 0.20 + speedLevel);
+	if (Player != None)
+		Player.CalcJumpZ();
 }
 
 // ----------------------------------------------------------------------

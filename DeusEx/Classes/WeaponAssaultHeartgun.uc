@@ -72,11 +72,9 @@ simulated function DoTraceFire( float Accuracy )
 		fireRotationAngle = FRand() * 2.0 * pi;
 		//G-Flex: use parametric equations for heart shape, normalize radius
 		fireYaw = 16.0*(sin(fireRotationAngle)**3);
-		//DeusExPlayer(GetPlayerPawn()).ClientMessage(Sprintf("Yaw: ",fireYaw));
 		fireYaw *= fireAccuracy / 16.0;
 		fireYaw *= 1 + (0.2 * (FRand() - 0.5));
 		firePitch = 13*cos(fireRotationAngle) - 5.0*cos(2.0*fireRotationAngle) - 2.0*cos(3.0*fireRotationAngle) - cos(4.0*fireRotationAngle);
-		//DeusExPlayer(GetPlayerPawn()).ClientMessage(Sprintf("Pitch: ",firePitch));
 		firePitch *= fireAccuracy / 15.0;
 		firePitch *= 1 + (0.2 * (FRand() - 0.5));
 		

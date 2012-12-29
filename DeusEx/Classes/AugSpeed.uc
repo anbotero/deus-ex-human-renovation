@@ -11,8 +11,8 @@ state Active
 Begin:
 	Player.GroundSpeed *= LevelValues[CurrentLevel];
 
-	//G-Flex: This is an awful hack.
-	Player.JumpZ = Player.Default.JumpZ * (0.20 * Player.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 0.20 + LevelValues[CurrentLevel]);
+	//G-Flex: to take SkillSwimming into account
+	Player.CalcJumpZ();
 
 	if ( Level.NetMode != NM_Standalone )
 	{
@@ -30,8 +30,8 @@ function Deactivate()
 	else
 		Player.GroundSpeed = Player.Default.GroundSpeed;
 
-	//G-Flex: This is an awful hack.
-	Player.JumpZ = Player.Default.JumpZ * (1 + (0.20 * (Player.SkillSystem.GetSkillLevelValue(class'SkillSwimming') - 1)));
+	//G-Flex: to take SkillSwimming into account
+	Player.CalcJumpZ();
 
 	if ( Level.NetMode != NM_Standalone )
 	{

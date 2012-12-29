@@ -17,7 +17,8 @@ function NoiseHeard(Name eventName, EAIEventState state, XAIParams params)
 {
 	local Actor A;
 
-	if (Event != '')
+	//G-Flex: only respond to sound, not visuals
+	if ((Event != '') && (params.Volume > 0.00001))
 		foreach AllActors(class 'Actor', A, Event)
 			A.Trigger(Self, GetPlayerPawn());
 }

@@ -13,4 +13,6 @@ defaultproperties
      Mesh=LodMesh'DeusExItems.ShellCasing2'
      CollisionRadius=2.570000
      CollisionHeight=0.620000
+	 //G-Flex: invincible
+	 bInvincible=True
 }

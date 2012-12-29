@@ -59,6 +59,17 @@ function bool Facelift(bool bOn)
 
 }
 
+//G-Flex: don't let the player smoke underwater
+function Activate()
+{
+	local Pawn P;
+
+	P = Pawn(Owner);
+	if (P != None && P.HeadRegion.Zone.bWaterZone)
+		return;
+	else
+		Super.Activate();
+}
 
 state Activated
 {
@@ -79,6 +90,11 @@ state Activated
 		P = Pawn(Owner);
 		if (P != None)
 		{
+			if (P.HeadRegion.Zone.bWaterZone)
+			{
+				GotoState('DeActivated');
+				return;
+			}
 			P.TakeDamage(5, P, P.Location, vect(0,0,0), 'PoisonGas');
 			loc = Owner.Location;
 			rot = Owner.Rotation;

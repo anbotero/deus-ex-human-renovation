@@ -13,14 +13,40 @@ function FirstFrame()
 {
 	local ScriptedPawn pawn;
 	local FlagTrigger ftrig;
-	local DeusExMover door;
+
+	local DeusExMover M;
+	local CrateExplosiveSmall tnt;
+	local RiotCop fuzz;
+	local AllianceTrigger altrig;
 
 	Super.FirstFrame();
 
+	//G-Flex: close the Castle Clinton doors and prevent anyone opening it for now
+	//G-Flex: otherwise spontaneous firefights happen at higher difficulties
+	if (localURL == "02_NYC_BATTERYPARK")
+	{
+		if (!flags.GetBool('CastleDoorShut'))
+		{
+			foreach RadiusActors(class'DeusExMover', M, 100, vect(1072,1168,336))
+			{
+				M.InterpolateTo(0,M.MoveTime);
+				M.bIsDoor = false;
+			}
+			flags.SetBool('CastleDoorShut', True,, 3);
+		}
+	}
 	if (localURL == "02_NYC_STREET")
 	{
 		flags.SetBool('M02StreetLoaded', True,, 3);
-
+		
+		//G-Flex: Sigh. Done so riot cops won't kill you at higher difficulties
+		//G-Flex: if you get in a fight with Sandra's pimp
+		if (!flags.GetBool('CopsChilled'))
+		{
+			foreach AllActors(class'RiotCop', fuzz)
+				fuzz.bHateShot = false;
+			flags.SetBool('CopsChilled', True,, 3);
+		}
 		// if you went to the warehouse without finishing the streets,
 		// set some flags
 		if (!flags.GetBool('MS_GuardsWandering') &&
@@ -71,17 +97,16 @@ function FirstFrame()
 		if (!flags.GetBool('OsgoodDoorFixed'))
 		{
 			//G-Flex: so the terrorist inside Osgood & Son's won't smash the door every. single. time.
-			foreach AllActors(class'DeusExMover', door)
+			foreach AllActors(class'DeusExMover', M)
 			{
-				if (door.KeyIDNeeded == 'StreetWarehouse')
+				if (M.KeyIDNeeded == 'StreetWarehouse')
 				{
-					door.bIsDoor = true;
+					M.bIsDoor = true;
 					break;
 				}
 			}
 			flags.SetBool('OsgoodDoorFixed', True,, 3);
 		}
-		
 	}
 	else if (localURL == "02_NYC_UNDERGROUND")
 	{
@@ -121,6 +146,34 @@ function FirstFrame()
 					pawn.EnterWorld();
 
 			flags.SetBool('SchickThankedPlayer', True);
+		}
+	}
+	else if (localURL == "02_NYC_WAREHOUSE")
+	{
+		//G-Flex: make generator explosive and get rid of invisible TNT
+		if (!flags.GetBool('GeneratorSetUp'))
+		{
+			foreach AllActors(class'DeusExMover', M, 'Generator')
+			{
+				M.tag = 'BlowGenerator';
+				M.bExplosive = true;
+				M.minDamageThreshold = 60;
+				M.explosionDamage = 300;
+				M.explosionRadius = 768;
+				M.fragmentSpread *= 3.0;
+				M.GotoState('TriggerDestroy');
+			}
+			foreach AllActors(class'CrateExplosiveSmall', tnt,'BlowGenerator')
+				tnt.Destroy();
+			flags.SetBool('GeneratorSetUp', True,, 3);
+		}
+	}
+	else if (localURL == "02_NYC_HOTEL")
+	{
+		//G-Flex: testing
+		foreach AllActors(class'AllianceTrigger', altrig)
+		{
+			altrig.SetCollision(False, False, False);
 		}
 	}
 	
@@ -215,11 +268,43 @@ function Timer()
 	local Actor A;
 	local SandraRenton Sandra;
 	local int count;
+	
+	local DeusExMover door;
+	local bool bOpenDoor;
+
+	local AllianceTrigger trig;
+	local bool bChangeAlliance;
 
 	Super.Timer();
 
 	if (localURL == "02_NYC_BATTERYPARK")
 	{
+		//G-Flex: let NPCs use the Castle Clinton doors again
+		if (!flags.GetBool('CastleDoorOpened') && flags.GetBool('CastleDoorShut'))
+		{
+			bOpenDoor = false;
+			//G-Flex: if the castle is already cleared or you've already killed some dudes
+			if (flags.GetBool('BatteryParkSlaughter') || flags.GetBool('CastleClintonCleared'))
+				bOpenDoor = true;
+			//G-Flex: or if you've alerted any of them or made them particularly hostile
+			foreach AllActors(class'Terrorist', T, 'ClintonTerrorist')
+			{
+				if (T.IsInState('Attacking') || T.IsInState('Alerting') || T.IsInState('Fleeing') ||
+				 T.IsInState('Burning') || T.IsInState('RubbingEyes') || T.IsInState('AvoidingProjectiles'))
+				{
+					bOpenDoor = true;
+					break;
+				}
+			}
+			if (bOpenDoor)
+			{
+				foreach RadiusActors(class'DeusExMover', door, 300, vect(1072,1168,336))
+				{
+					door.bIsDoor = true;
+				}
+				flags.SetBool('CastleDoorOpened', True,, 3);
+			}
+		}
 		// after terrorists are dead, set guards to wandering
 		// Y|y: Fix so as to not erroneously tag you as a murderer
 		if (!flags.GetBool('BatteryParkSlaughter') && !flags.GetBool('CastleClintonCleared'))
@@ -230,11 +315,12 @@ function Timer()
 			foreach AllActors(class'Terrorist', T, 'ClintonTerrorist')
 				count++;
 
+			//G-Flex: fix typo 'ClintonGuard' -> 'ClintonGuards'
 			// one way or another, the castle has been cleared
 			if(count == 0)
 			{
 				// nothing to do here anymore, so wander
-				foreach AllActors(class'UNATCOTroop', guard, 'ClintonGuard')
+				foreach AllActors(class'UNATCOTroop', guard, 'ClintonGuards')
 					guard.SetOrders('Wandering', '', True);
 
 				flags.SetBool('CastleClintonCleared', True,, 3);
@@ -249,7 +335,7 @@ function Timer()
 			if (count <= 3 && !flags.GetBool('BatteryParkSlaughter'))
 			{
 				// free up the guards so they can kill 'em
-				foreach AllActors(class'UNATCOTroop', guard, 'ClintonGuard')
+				foreach AllActors(class'UNATCOTroop', guard, 'ClintonGuards')
 					guard.SetOrders('Wandering', '', True);
 
 				flags.SetBool('BatteryParkSlaughter', True,, 6);
@@ -507,6 +593,66 @@ function Timer()
 	}
 	else if (localURL == "02_NYC_HOTEL")
 	{
+		/*//G-Flex: kill the alliancetrigger so terrorists don't magically know you're there
+		if (!flags.GetBool('HotelTriggerRemoved'))
+		{
+			foreach AllActors(class'AllianceTrigger', trig)
+			{
+				if (trig.Event == 'SecondFloorTerrorist')
+					trig.Destroy();
+			}
+			flags.SetBool('HotelTriggerRemoved', True,, 3);
+		}
+		//G-Flex: allow Mr. Renton's guard to hide better and shut everyone up
+		//G-Flex: similar to Mission06
+		else */if (!flags.GetBool('HotelQuiet'))
+		{
+			foreach AllActors(class'Terrorist', T, 'GilbertTerrorist')
+				T.SetReactions(true, false, true, true, true, false,
+				 false, true, true, true, true, true);
+			foreach AllActors(class'ScriptedPawn', pawn)
+			{
+				if (pawn.IsA('Male3') || pawn.IsA('Female1'))
+					pawn.bCanConverse = False;
+				else
+					pawn.bPlayIdle = False;
+			}
+			flags.SetBool('HotelQuiet', True,, 3);
+		}
+		/*if (!flags.GetBool('TerroristsHostile'))
+		{
+			foreach AllActors(class'Terrorist', T, 'SecondFloorTerrorist')
+			{
+				if (T.IsInState('StartUp') || T.IsInState('Standing') || T.IsInState('Idle') || T.IsInState('Paralyzed') || 
+				 T.IsInState('Idle'))
+					continue;
+				else
+				{
+					log(T.GetStateName());
+					bChangeAlliance = true;
+				}
+			}
+			if (bChangeAlliance)
+			{
+				foreach AllActors(class'Terrorist', T, 'SecondFloorTerrorist')
+				{
+					T.ChangeAlly('Hostages', -1.000000, true);
+					foreach T.RadiusActors(class'ScriptedPawn', pawn, 100)
+						T.SetOrders('Attacking', pawn.Tag, True);
+				}
+				//G-Flex: also make Gilbert's guard stop hiding
+				foreach AllActors(class'Terrorist', T, 'GilbertTerrorist')
+					T.ResetReactions();
+				foreach AllActors(class'ScriptedPawn', pawn)
+				{
+					if (pawn.IsA('Male3') || pawn.IsA('Female1'))
+						pawn.bCanConverse = True;
+					else
+						pawn.bPlayIdle = True;
+				}
+				flags.SetBool('TerroristsHostile', True,, 3);
+			}
+		}*/
 		// if the player kills all the terrorists, set a flag
 		if (!flags.GetBool('M02HostagesRescued'))
 		{

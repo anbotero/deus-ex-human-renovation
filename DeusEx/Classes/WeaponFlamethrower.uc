@@ -82,5 +82,5 @@ defaultproperties
      Mesh=LodMesh'DeusExItems.FlamethrowerPickup'
      CollisionRadius=20.500000
      CollisionHeight=4.400000
-     Mass=40.000000
+     Mass=45.000000
 }

@@ -30,6 +30,10 @@ function FirstFrame()
 	local LightSwitch theswitch;
 	local Button1 thebutton;
 	local HKMilitary cop;
+	
+	local GuardNode FirstNode, OtherNode;
+	
+	local TriadRedArrow triad;
 
 	Super.FirstFrame();
 
@@ -51,8 +55,8 @@ function FirstFrame()
 			foreach AllActors(class'HKMilitary', cop)
 			{
 				cop.MaxProvocations--;
-				flags.SetBool('HK_Military_Reactions_STREET',True);
 			}
+			flags.SetBool('HK_Military_Reactions_STREET',True);
 		}
 		if(!flags.GetBool('DisplayCase_Moveable'))
 		{
@@ -115,8 +119,8 @@ function FirstFrame()
 			foreach AllActors(class'HKMilitary', cop)
 			{
 				cop.MaxProvocations--;
-				flags.SetBool('HK_Military_Reactions_CANAL',True);
 			}
+			flags.SetBool('HK_Military_Reactions_CANAL',True);
 		}
 		//G-Flex: used to read 'HaveROM', fixed
 		if (!flags.GetBool('Supervisor01_Dead') &&
@@ -179,6 +183,30 @@ function FirstFrame()
 	}
 	else if (localURL == "06_HONGKONG_WANCHAI_UNDERWORLD")
 	{
+		//G-Flex: set better AI params for party people, bouncers, etc.
+		if (!flags.GetBool('LuckyMoneyAISet'))
+		{
+			foreach AllActors(class'ScriptedPawn', pawn)
+			{
+				if (pawn.Alliance == 'Partyer')
+					pawn.bFearAlarm = true;
+				else if (pawn.Alliance == 'RedArrow')
+				{
+					if ((pawn.Tag != 'ClubTriadBackroom') && (pawn.Tag != 'MaxChen') && (pawn.Tag != 'BarKeep'))
+					{
+						pawn.bHateShot = true;
+						pawn.bHateAlarm = true;
+					}
+					pawn.bHateDistress= true;
+				}
+				else if (pawn.Alliance == 'Cop')
+					pawn.bHateAlarm = true;
+			}
+			foreach AllActors(class'AllianceTrigger', altrig, 'StoreSafe')
+				altrig.Destroy();
+			flags.SetBool('LuckyMoneyAISet', True,, 8);
+		
+		}
 		if (flags.GetBool('QuickLetPlayerIn'))
 		{
 			foreach AllActors(class'MJ12Commando', commando, 'MJ12Commando')
@@ -218,8 +246,8 @@ function FirstFrame()
 			foreach AllActors(class'HKMilitary', cop)
 			{
 				cop.MaxProvocations--;
-				flags.SetBool('HK_Military_Reactions_GARAGE',True);
 			}
+			flags.SetBool('HK_Military_Reactions_GARAGE',True);
 		}
 		if (flags.GetBool('M07Briefing_Played'))
 		{
@@ -263,6 +291,42 @@ function FirstFrame()
 	}
 	else if (localURL == "06_HONGKONG_WANCHAI_MARKET")
 	{
+		//G-Flex: get cops to hate you more reliably if the alarms go off
+		if(!flags.GetBool('HK_Military_Reactions_MARKET'))
+		{
+			foreach AllActors(class'HKMilitary', cop)
+			{
+				cop.bHateAlarm = true;
+			}
+			flags.SetBool('HK_Military_Reactions_MARKET',True);
+		}
+		//G-Flex: set up new guard node stuff for the police station cops
+		if(!flags.GetBool('HK_Market_GuardNodes'))
+		{
+			foreach AllActors(class'AllianceTrigger', altrig)
+			{
+				if (altrig.Event == 'HKMilitary01')
+					altrig.Event = '';
+			}
+			FirstNode = Spawn(class'GuardNode', None,, vect(-390,-675,50));
+			if (FirstNode != None)
+			{
+				FirstNode.bPrimary = true;
+				FirstNode.NodeType = NT_KeepOut;
+				FirstNode.Shape = SHAPE_Cylinder;
+				FirstNode.SetCollisionSize(1250,400);
+				OtherNode = FirstNode.CreateLinkedNode(vect(-165,-640,50), true);
+			}
+			if (OtherNode != None)
+				OtherNode.CreateLinkedNode(vect(-295,-650,-110), true);
+			foreach AllActors(class'HKMilitary', cop, 'HKMilitary01')
+			{
+				cop.GuardSpot = FirstNode;
+				cop.bReactLoudNoise = true;
+				cop.UpdateReactionCallbacks();
+			}
+			flags.SetBool('HK_Market_GuardNodes',True);
+		}
 		// prepare for the ceremony
 		if (flags.GetBool('Have_ROM') &&
 			flags.GetBool('MeetTracerTong_Played') &&
@@ -456,6 +520,7 @@ function Timer()
 	local MJ12Troop mjtroop;
 	local MaggieChow mchow;
 	local bool chowalert;
+	local ScriptedPawn pawn;
 
 	Super.Timer();
 
@@ -520,6 +585,23 @@ function Timer()
 	}
 	else if (localURL == "06_HONGKONG_WANCHAI_UNDERWORLD")
 	{
+		//G-Flex: this can't happen on the first frame, because the NPCs might be in the Startup state
+		/*if(!flags.GetBool('Backroom_Silent'))
+		{
+			if(!flags.GetBool('Backroom_Silent_FIRST'))
+				flags.SetBool('Backroom_Silent_FIRST', True,, 8);
+			else
+			{
+				foreach AllActors(class'ScriptedPawn', pawn, )
+				{
+					//G-Flex: change their reactions too so they don't respond to noise and some other things
+					mjtroop.SetReactions(true, false, true, true, true, false, false, true,
+					 true, true, true, true);
+				}
+				flags.SetBool('Backroom_Silent', True,, 8);
+			}
+		}*/
+
 		if (flags.GetBool('MaxChenConvinced') &&
 			!flags.GetBool('MS_CommandosUnhidden'))
 		{
