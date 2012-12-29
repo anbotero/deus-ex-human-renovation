@@ -41,6 +41,9 @@ var bool bAggressiveExploded; //True if exploded by Aggressive Defense
 var localized string itemName;		// human readable name
 var localized string	itemArticle;	// article much like those for weapons
 
+//G-Flex: needed for explosion-related checks
+var vector wallNormal;
+
 // network replication
 replication
 {
@@ -324,6 +327,8 @@ simulated function SpawnEffects(Vector HitLocation, Vector HitNormal, Actor Othe
 		effectiveDamage = Damage;
 		if ((DamageType != 'Sabot') && (DamageType != 'Exploded') && (!mov.IsA('BreakableGlass')))
 			effectiveDamage *= 0.666;
+		if ((DamageType == 'Burned') || (DamageType == 'Flamed'))
+			effectiveDamage *= 0.333;
 		//G-Flex: filter damage types that are filtered out in DeusExMover
 		else if ((DamageType == 'TearGas') || (damageType == 'PoisonGas') || (damageType == 'HalonGas')
 		|| (damageType == 'Stunned') || (damageType == 'Radiation') || (DamageType == 'EMP')
@@ -492,13 +497,15 @@ state Exploding
 			}
 		}
       //DEUS_EX AMSD Ignore Line of Sight on the lowest radius check, only in multiplayer
-		HurtRadius
+		class'Tools'.static.NewHurtRadius
 		(
+			self,
 			(2 * Damage) / gradualHurtSteps,
 			(blastRadius / gradualHurtSteps) * gradualHurtCounter,
 			damageType,
 			MomentumTransfer / gradualHurtSteps,
 			Location,
+			WallNormal,
          ((gradualHurtCounter <= 2) && (Level.NetMode != NM_Standalone))
 		);
    }
@@ -602,6 +609,8 @@ auto simulated state Flying
 		local bool bDestroy;
 		local float rad;
 
+		//G-Flex: store this globally
+		wallNormal = HitNormal;
       // Reduce damage on nano exploded projectiles
       if ((bAggressiveExploded) && (Level.NetMode != NM_Standalone))
          Damage = Damage/6;

@@ -613,16 +613,9 @@ function bool ActivateAugByKey(int keyNum)
 		// Toggle
 		if (anAug.bIsActive)
 			anAug.Deactivate();
-		else if (Player.Energy == 0)
-		{
-			//G-Flex: mostly copied this from DeusExPlayer.ActivateAugmentation()
-			//G-Flex: we can probably delete it from there
-			Player.ClientMessage(Player.EnergyDepleted);
-			Player.PlaySound(anAug.DeactivateSound, SLOT_None);
-		}
 		else
 			anAug.Activate();
-		//G-Flex: I don't think the return value ever actually does anything
+
 		bActivated = True;
 	}
 

@@ -458,4 +458,7 @@ defaultproperties
      Buoyancy=1.000000
      RotationRate=(Pitch=6000,Yaw=25000)
      BindName="Fishes"
+	 //G-Flex: give fishes a visible name
+	 FamiliarName="Fish"
+     UnfamiliarName="Fish"
 }

@@ -58,4 +58,6 @@ defaultproperties
      bBounce=False
      NetPriority=1.000000
      NetUpdateFrequency=5.000000
+	 //G-Flex: invincible
+	 bInvincible=True
 }

@@ -7,6 +7,8 @@ var bool bSmoking;
 var Vector lastHitLoc;
 var float smokeTime;
 var ParticleGenerator smokeGen;
+//G-Flex: added
+var bool bInvincible;
 
 //
 // copied from Engine.Fragment
@@ -92,6 +94,14 @@ state Dying
 			PlaySound(MiscSound, SLOT_None, 0.5+FRand()*0.5,, 512, 0.85+FRand()*0.3);
 
 		lastHitLoc = Location;
+	}
+	
+	//G-Flex: overridden from Fragment
+	function TakeDamage( int Dam, Pawn instigatedBy, Vector hitlocation, 
+							Vector momentum, name damageType)
+	{
+		if (!bInvincible)
+			Destroy();
 	}
 
 	function BeginState()

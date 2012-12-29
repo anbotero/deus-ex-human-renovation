@@ -25,7 +25,20 @@ var DeusExLevelInfo dxInfo;
 
 function PostPostBeginPlay()
 {
+	/*local ScriptedPawn SP;
 	// start the script
+	
+	//G-Flex: instantiate ScriptedPawn lists
+	foreach AllActors(class'ScriptedPawn',SP)
+	{
+		if (SP.AggressorList == None)
+		{
+			SP.AggressorList = new () class'ListElement';
+			log("missionscript made new list for " $ SP.Name);
+		}
+	}*/
+	
+	
 	SetTimer(checkTime, True);
 }
 
@@ -136,6 +149,19 @@ function FirstFrame()
 
 function PreTravel()
 {
+	/*local ScriptedPawn SP;
+	
+	foreach AllActors(class'ScriptedPawn',SP)
+	{
+		if (SP.AggressorList != None)
+		{
+			SP.AggressorList.ClearList();
+			SP.CriticalDelete(SP.AggressorList);
+			SP.AggressorList = None;
+			log("missionscript deleted list for " $ SP.Name);
+		}
+	}*/
+	
 	// turn off the timer
 	SetTimer(0, False);
 

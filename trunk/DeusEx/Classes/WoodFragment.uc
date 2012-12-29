@@ -17,4 +17,6 @@ defaultproperties
      CollisionHeight=1.000000
      Mass=5.000000
      Buoyancy=6.000000
+	 //G-Flex: invincible
+	 bInvincible=True
 }

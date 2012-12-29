@@ -52,12 +52,15 @@ function SetSkin()
 									bFlammable = False;
 									HitPoints = 12;
 									break;
-		case SC_Blue:				texstr = "Barrel1Tex2"; break;
+		case SC_Blue:				texstr = "Barrel1Tex2";
 									bFlammable = False;
-		case SC_Brown:				texstr = "Barrel1Tex3"; break;
+									break;
+		case SC_Brown:				texstr = "Barrel1Tex3";
 									bFlammable = False;
-		case SC_Rusty:				texstr = "Barrel1Tex4"; break;
+									break;
+		case SC_Rusty:				texstr = "Barrel1Tex4";
 									bFlammable = False;
+									break;
 		case SC_Explosive:			texstr = "Barrel1Tex5";
 									bExplosive = True;
 									explosionDamage = 400;
@@ -92,8 +95,9 @@ function SetSkin()
 									ScaleGlow = 0.4;
 									break;
 		case SC_Wood:				texstr = "Barrel1Tex10"; break;
-		case SC_Yellow:				texstr = "Barrel1Tex11"; break;
+		case SC_Yellow:				texstr = "Barrel1Tex11";
 									bFlammable = False;
+									break;
 	}
 
 	if(Mesh == Default.Mesh)
@@ -319,6 +323,15 @@ auto state Active
 
 		Super.TakeDamage(Damage, instigatedBy, hitlocation, momentum, damageType);
 	}
+}
+
+//G-Flex: destroy particle generators to prevent destroyed barrels from smoking/leaking
+event LostChild( Actor Other )
+{
+	Super.LostChild(Other);
+	
+	if (Other.IsA('ParticleGenerator'))
+		ParticleGenerator(Other).DelayedDestroy();
 }
 
 defaultproperties

@@ -64,6 +64,8 @@ defaultproperties
      blastRadius=512.000000
      DamageType=Flamed
      ItemName="WP Rocket"
+	 //G-Flex: changed damage
+	 Damage=80.000000
 	 //G-Flex: changed SpawnSound
 	 SpawnSound=Sound'DeusExSounds.Weapons.GEPGunFireWP'
      ImpactSound=Sound'DeusExSounds.Generic.SmallExplosion2'

@@ -33,7 +33,7 @@ function bool IncLevel(optional DeusExPlayer usePlayer)
 	local DeusExPlayer localPlayer;
 
 	//G-Flex: For the speed aug level
-	local float speedLevel;
+	//local float speedLevel;
 
 	// First make sure we're not maxed out
 	if (CurrentLevel < 3)
@@ -56,18 +56,9 @@ function bool IncLevel(optional DeusExPlayer usePlayer)
 				// decrement the cost and increment the current skill level
 				localPlayer.SkillPointsAvail -= GetCost();
 				CurrentLevel++;
-
-				//G-Flex: This is an awful hack.
-				if (localPlayer.AugmentationSystem != None)
-				{
-					speedLevel = FMax(1.0,localPlayer.AugmentationSystem.GetAugLevelValue(class'AugSpeed'));
-				}
-				else
-				{
-					speedLevel = 1.0;
-				}
-
-				localPlayer.JumpZ = localPlayer.Default.JumpZ * (0.20 * LevelValues[currentLevel] - 0.20 + speedLevel);
+				
+				localPlayer.CalcJumpZ();
+				
 				return True;
 			}
 		}
@@ -76,6 +67,41 @@ function bool IncLevel(optional DeusExPlayer usePlayer)
 			CurrentLevel++;
 			return True;
 		}
+	}
+
+	return False;
+}
+function bool DecLevel(optional bool bGiveUserPoints,optional DeusExPlayer usePlayer)
+{
+	local DeusExPlayer localPlayer;
+
+	//G-Flex: For the speed aug level
+	//local float speedLevel;
+
+	// First make sure we're not already at the bottom
+	if (CurrentLevel > 0)
+	{
+		// Decrement the skill level 
+		CurrentLevel--;
+
+		// If "usePlayer" is passed in, then we want to use this 
+		// as the basis for making our calculations, temporarily
+		// overriding whatever this skill's player is set to.
+
+		if (usePlayer != None)
+			localPlayer = usePlayer;
+		else
+			localPlayer = Player;
+
+		// If a player exists and the 'bGiveUserPoints' flag is set, 
+		// then add the points to the player
+		if (( bGiveUserPoints ) && (localPlayer != None))
+			localPlayer.SkillPointsAvail += GetCost();
+
+		if (localPlayer != None)
+			localPlayer.CalcJumpZ();
+
+		return True;
 	}
 
 	return False;

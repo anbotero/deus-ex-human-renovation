@@ -157,7 +157,8 @@ var float lastThirdPersonConvoTime;
 var Actor lastFirstPersonConvoActor;
 var float lastFirstPersonConvoTime;
 
-var Bool bStartingNewGame;							// Set to True when we're starting a new game. 
+//G-Flex: make bStartingNewGame a travel var
+var travel Bool bStartingNewGame;							// Set to True when we're starting a new game. 
 var Bool bSavingSkillsAugs;
 
 // Put spy drone here instead of HUD
@@ -589,7 +590,6 @@ function PostPostBeginPlay()
 
 function PreTravel()
 {
-	local float desiredVFOV;
 	local float newDefaultFOV;
 	// Set a flag designating that we're traveling,
 	// so MissionScript can check and not call FirstFrame() for this map.
@@ -605,10 +605,9 @@ function PreTravel()
 	// before the map transition.  This is done to fix stuff 
 	// that's fucked up.
 	ExtinguishFire();
-	
-	//G-Flex: similar to DeusExScopeView but we know the vFoV
-	desiredVFOV = 1.044413;
-	newDefaultFOV = 57.2957795 * (2 * atan(tan(desiredVFOV/2.00) * (rootWindow.width/rootWindow.height)));
+
+	//G-Flex: make sure we have the right FOV angle
+	newDefaultFOV = class'Tools'.static.AspectCorrectHFOV(75.000,4.0000/3.0000,rootWindow.width/rootWindow.height);
 	
 	DefaultFOV = newDefaultFOV;
 	desiredFOV = newDefaultFOV;
@@ -616,6 +615,8 @@ function PreTravel()
 	//G-Flex: blame the devs for using default.desiredFOV so much instead of defaultFOV
 	default.DefaultFOV = newDefaultFOV;
 	default.desiredFOV = newDefaultFOV;
+	
+	log("pretravel new default fov: " $ newDefaultFOV);
 }
 
 // ----------------------------------------------------------------------
@@ -623,17 +624,15 @@ function PreTravel()
 // ----------------------------------------------------------------------
 
 event TravelPostAccept()
-{
+{ 
 	local DeusExLevelInfo info;
 	local MissionScript scr;
 	local bool bScriptRunning;
 	local InterpolationPoint I;
 	local string misstr;
 
-	//G-Flex: we want these to properly set JumpZ later
-	local float speedLevel;
-	local float swimLevel;
-	
+	//G-Flex: need this for inventory resetting
+	local Inventory anItem;
 	//G-Flex: for refreshing vision aug
 	local AugVision VisionAug;
 	
@@ -644,6 +643,32 @@ event TravelPostAccept()
 
 	info = GetLevelInfo();
 
+	//G-Flex: Reset inventory here since other solutions don't always work
+	//G-Flex: use previously-nonutilized bStartingNewGame for this
+	if (bStartingNewGame)
+	{
+		ResetInventory();
+		//G-Flex: give default inventory in singleplayer and outside training/endgame/etc
+		if ((Level.NetMode == NM_StandAlone) && ((info == None) || ((info.MissionNumber < 98) && (info.MissionNumber > 0))))
+		{
+			// Give the player a pistol and a prod
+			anItem = Spawn(class'WeaponPistol');
+			//G-Flex: Frob() gives a client message we don't want
+			//anItem.Frob(Self, None);
+			anItem.SpawnCopy(Self);
+			anItem.bInObjectBelt = True;
+			anItem = Spawn(class'WeaponProd');
+			//anItem.Frob(Self, None);
+			anItem.SpawnCopy(Self);
+			anItem.bInObjectBelt = True;
+			anItem = Spawn(class'MedKit');
+			//anItem.Frob(Self, None);
+			anItem.SpawnCopy(Self);
+			anItem.bInObjectBelt = True;
+			
+			bStartingNewGame = False;
+		}
+	}
 	if (info != None)
 	{
 		// hack for the DX.dx logo/splash level
@@ -697,15 +722,9 @@ event TravelPostAccept()
 
 	RestoreSkillPoints();
 
-	//G-Flex: Get swim skill and speed aug level into variables just in case either one doesn't exist
 	if (SkillSystem != None)
 	{
 		SkillSystem.SetPlayer(Self);
-		swimLevel = SkillSystem.GetSkillLevelValue(class'SkillSwimming');
-	}
-	else
-	{
-		swimLevel = 1.0;
 	}
 
 	if (AugmentationSystem != None)
@@ -713,7 +732,6 @@ event TravelPostAccept()
 		// set the player correctly
 		AugmentationSystem.SetPlayer(Self);
 		AugmentationSystem.RefreshAugDisplay();
-		speedLevel = FMax(1.0,AugmentationSystem.GetAugLevelValue(class'AugSpeed'));
 		//G-Flex: increment vision aug if aug is active
 		//G-Flex: this is pretty clunky but I can't think of a better way
 		if(AugmentationSystem.GetClassLevel(class'AugVision') != -1)
@@ -722,13 +740,7 @@ event TravelPostAccept()
 			VisionAug.SetVisionAugStatus(VisionAug.CurrentLevel,VisionAug.LevelValues[VisionAug.CurrentLevel],True);
 		}
 	}
-	else
-	{
-		speedLevel = 1.0;
-	}
-
-	//G-Flex: This is an awful hack.
-	JumpZ = Default.JumpZ * (0.20 * swimLevel - 0.20 + speedLevel);
+	CalcJumpZ();
 
 	// Nuke any existing conversation
 	if (conPlay != None)
@@ -749,8 +761,8 @@ event TravelPostAccept()
 	PutCarriedDecorationInHand();
 
 	// Reset FOV
-	SetFOVAngle(Default.DesiredFOV);
-
+	SetFOVAngle(Default.DefaultFOV);
+	
 	// If the player had a scope view up, make sure it's 
 	// properly restore
 	RestoreScopeView();
@@ -925,16 +937,18 @@ function DeusExLevelInfo GetLevelInfo()
 //
 // If player chose to dual map the F keys
 //
-exec function DualmapF3() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(0); }
-exec function DualmapF4() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(1); }
-exec function DualmapF5() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(2); }
-exec function DualmapF6() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(3); }
-exec function DualmapF7() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(4); }
-exec function DualmapF8() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(5); }
-exec function DualmapF9() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(6); }
-exec function DualmapF10() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(7); }
-exec function DualmapF11() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(8); }
-exec function DualmapF12() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(9); }
+//G-Flex: change to prevent some problems
+//exec function DualmapF3() { if ( AugmentationSystem != None) AugmentationSystem.ActivateAugByKey(0); }
+exec function DualmapF3() { ActivateAugmentation(0); }
+exec function DualmapF4() { ActivateAugmentation(1); }
+exec function DualmapF5() { ActivateAugmentation(2); }
+exec function DualmapF6() { ActivateAugmentation(3); }
+exec function DualmapF7() { ActivateAugmentation(4); }
+exec function DualmapF8() { ActivateAugmentation(5); }
+exec function DualmapF9() { ActivateAugmentation(6); }
+exec function DualmapF10() { ActivateAugmentation(7); }
+exec function DualmapF11() { ActivateAugmentation(8); }
+exec function DualmapF12() { ActivateAugmentation(9); }
 exec function GlobalFacelift(bool bOn)
 {
 	local Actor generic;
@@ -1135,9 +1149,7 @@ function BuySkillSound( int code )
 // ----------------------------------------------------------------------
 
 exec function StartNewGame(String startMap)
-{
-	//G-Flex: use some Shifter fixes for inventory-clearing
-	local Inventory item, nextItem;
+{	
 	if (DeusExRootWindow(rootWindow) != None)
 		DeusExRootWindow(rootWindow).ClearWindowStack();
 
@@ -1145,14 +1157,7 @@ exec function StartNewGame(String startMap)
 	// so MissionScript can check and not call FirstFrame() for this map.
 	flagBase.SetBool('PlayerTraveling', True, True, 0);
 
-	if(KeyRing != None)
-		KeyRing.RemoveAllKeys();
-
-	for(item = Inventory; item != None; item = nextItem)
-	{
-		nextItem = item.Inventory;
-		item.Destroy();
-	}
+	
 	SaveSkillPoints();
 	ResetPlayer();
 	DeleteSaveGameFiles();
@@ -1187,6 +1192,8 @@ function StartTrainingMission()
 	ResetPlayer(True);
 	DeleteSaveGameFiles();
 	bStartingNewGame = True;
+	//G-Flex: reset difficulty to Easy
+	combatDifficulty = Default.combatDifficulty;
 	Level.Game.SendPlayer(Self, "00_Training?Difficulty="$combatDifficulty);
 }
 
@@ -1330,9 +1337,6 @@ function ShowMultiplayerWin( String winnerName, int winningTeam, String Killer, 
 
 function ResetPlayer(optional bool bTraining)
 {
-	local inventory anItem;
-	local inventory nextItem;
-
 	ResetPlayerToDefaults();
 
 	// Reset Augmentations
@@ -1342,20 +1346,8 @@ function ResetPlayer(optional bool bTraining)
 		AugmentationSystem.Destroy();
 		AugmentationSystem = None;
 	}
-
-	// Give the player a pistol and a prod
-	if (!bTraining)
-	{
-		anItem = Spawn(class'WeaponPistol');
-		anItem.Frob(Self, None);
-		anItem.bInObjectBelt = True;
-		anItem = Spawn(class'WeaponProd');
-		anItem.Frob(Self, None);
-		anItem.bInObjectBelt = True;
-		anItem = Spawn(class'MedKit');
-		anItem.Frob(Self, None);
-		anItem.bInObjectBelt = True;
-	}
+	
+	//G-Flex: give default inventory in TravelPostAccept() instead
 }
 
 // ----------------------------------------------------------------------
@@ -1366,8 +1358,6 @@ function ResetPlayer(optional bool bTraining)
 
 function ResetPlayerToDefaults()
 {
-	local inventory anItem;
-	local inventory nextItem;
 
    // reset the image linked list
 	FirstImage = None;
@@ -1375,28 +1365,8 @@ function ResetPlayerToDefaults()
 	if (DeusExRootWindow(rootWindow) != None)
 		DeusExRootWindow(rootWindow).ResetFlags();
 
-	// Remove all the keys from the keyring before
-	// it gets destroyed
-	if (KeyRing != None)
-	{
-		KeyRing.RemoveAllKeys();
-      if ((Role == ROLE_Authority) && (Level.NetMode != NM_Standalone))
-      {
-         KeyRing.ClientRemoveAllKeys();
-      }
-		KeyRing = None;
-	}
-
-	while(Inventory != None)
-	{
-		anItem = Inventory;
-		DeleteInventory(anItem);
-		anItem.Destroy();
-	}
-
-	// Clear object belt
-	if (DeusExRootWindow(rootWindow) != None)
-		DeusExRootWindow(rootWindow).hud.belt.ClearBelt();
+	//G-Flex: reset inventory and keyring in ResetInventory()
+	ResetInventory();
 
 	// clear the notes and the goals
 	DeleteAllNotes();
@@ -1453,6 +1423,67 @@ function CreateKeyRing()
 }
 
 // ----------------------------------------------------------------------
+// ResetInventory()
+//G-Flex: delete inventory, give a new keyring
+// ----------------------------------------------------------------------
+
+function ResetInventory()
+{
+	local Inventory anItem;
+
+	// Remove all the keys from the keyring before
+	// it gets destroyed
+	if (KeyRing != None)
+	{
+		KeyRing.RemoveAllKeys();
+		if ((Role == ROLE_Authority) && (Level.NetMode != NM_Standalone))
+		{
+			KeyRing.ClientRemoveAllKeys();
+		}
+		KeyRing = None;
+	}
+
+	while(Inventory != None)
+	{
+		anItem = Inventory;
+		DeleteInventory(anItem);
+		anItem.Destroy();
+	}
+
+	// Clear object belt
+	if (DeusExRootWindow(rootWindow) != None)
+		DeusExRootWindow(rootWindow).hud.belt.ClearBelt();
+	
+	if ((Level.Netmode == NM_Standalone) || (!bBeltIsMPInventory))
+	{
+		// Give the player a keyring
+		CreateKeyRing();
+	}
+}
+
+// ----------------------------------------------------------------------
+// CalcJumpZ()
+//G-Flex: for applying speed aug and swimming skill effects
+// ----------------------------------------------------------------------
+
+function float CalcJumpZ()
+{
+	local float swimLevel, speedLevel;
+	if (SkillSystem != None)
+		swimLevel = SkillSystem.GetSkillLevelValue(class'SkillSwimming');
+	else
+		swimLevel = 1.0;
+
+	if (AugmentationSystem != None)
+		speedLevel = FMax(1.0,AugmentationSystem.GetAugLevelValue(class'AugSpeed'));
+	else
+		speedLevel = 1.0;
+	
+	JumpZ = Default.JumpZ * (0.20 * swimLevel - 0.20 + speedLevel);
+
+}
+
+// ----------------------------------------------------------------------
 // DrugEffects()
 // ----------------------------------------------------------------------
 
@@ -1489,6 +1520,7 @@ simulated function DrugEffects(float deltaTime)
 		ViewRotation += rot;
 		
 		//G-Flex: Retain scoped FOV, and keep jitter even at max drug-zoom
+		//G-Flex: reduce jitter as well because jittery weapons look odd
 		//G-Flex: Also, adjust the FOV adjustment depending on default FOV
 		//G-Flex: and limit to 0.4 times normal viewing angle (30.0 for 4:3) instead of a constant 30
 		//G-Flex: It's not perfect but it'll prevent drug FOV changes from being
@@ -1498,7 +1530,7 @@ simulated function DrugEffects(float deltaTime)
 			if ( Level.NetMode == NM_Standalone )
 			{
 				fov = Default.DesiredFOV - (drugEffectTimer * (Default.DesiredFOV / 75.0));
-				fov = FClamp(fov, (Default.DesiredFOV * 0.4), Default.DesiredFOV) + Rand(2);
+				fov = FClamp(fov, (Default.DesiredFOV * 0.4), Default.DesiredFOV) + FRand();
 				DesiredFOV = fov;
 			}
 			else
@@ -1506,9 +1538,15 @@ simulated function DrugEffects(float deltaTime)
 		}
 
 		//Aug Environment will help with drug effects
+		//G-Flex: less than in Shifter
+		//G-Flex: was 1.333, 2.000, 4.000, 10.000; now 1.333, 1.750, 3.000, 6.750
 		augLevel = AugmentationSystem.GetAugLevelValue(class'AugEnviro');
 		if(augLevel > 0.0)
-			drugEffectTimer -= deltaTime / augLevel;
+		{
+			//G-Flex: unsimplified
+			//drugEffectTimer -= deltaTime * ((1.00/augLevel)+(0.25+augLevel)/augLevel)/2.00
+			drugEffectTimer -= deltaTime * (1.25 + augLevel)/(augLevel*2.00);
+		}
 		else
 			drugEffectTimer -= deltaTime;
 		if (drugEffectTimer < 0)
@@ -2329,27 +2367,22 @@ exec function AugAdd(class<Augmentation> aWantedAug)
 
 // ----------------------------------------------------------------------
 // ActivateAugmentation()
+//G-Flex: clean up function a bit, remove unused vars
 // ----------------------------------------------------------------------
 
 exec function ActivateAugmentation(int num)
 {
-	local Augmentation anAug;
-	local int count, wantedSlot, slotIndex;
-	local bool bFound;
-
-	if (RestrictInput())
+	if (RestrictInput() || (AugmentationSystem == None))
 		return;
 
-//G-Flex: we do this in ActivateAugByKey() now
-//	if (Energy == 0)
-//	{
-//		ClientMessage(EnergyDepleted);
-//		PlaySound(AugmentationSystem.FirstAug.DeactivateSound, SLOT_None);
-//		return;
-//	}
+	if (Energy == 0)
+	{
+		ClientMessage(EnergyDepleted);
+		PlaySound(AugmentationSystem.FirstAug.DeactivateSound, SLOT_None);
+		return;
+	}
 
-	if (AugmentationSystem != None)
-		AugmentationSystem.ActivateAugByKey(num);
+	AugmentationSystem.ActivateAugByKey(num);
 }
 
 // ----------------------------------------------------------------------
@@ -3788,7 +3821,7 @@ state PlayerWalking
 		// make crouch speed faster than normal
 		else if (bIsCrouching || bForceDuck)
 		{
-//			newSpeed = defSpeed * 1.8;		// DEUS_EX CNN - uncomment to speed up crouch
+			//newSpeed = defSpeed * 1.8;		// DEUS_EX CNN - uncomment to speed up crouch
 			bIsWalking = True;
 		}
 
@@ -3825,24 +3858,51 @@ state PlayerWalking
 		//	bIsWalking = True;
 		//	newSpeed = defSpeed;
 		//}
+		//G-Flex: this is my new, overcomplicated method with lots of kludgy math
 		else if ((DeusExWeapon(Weapon) != None) && (Weapon.Mass > 30) && (Level.NetMode==NM_Standalone))
 		{
-			//G-Flex: this is far from how I'd prefer to do this, but whatever
-			weapSkill = DeusExWeapon(Weapon).GetWeaponSkill();
-			if (weapSkill ~= 0.0)
-			{	//G-Flex: untrained, always walking and extra slow
+			augValue = 1.0;
+			if (AugmentationSystem != None)
+			{
+				//G-Flex: 1.00 (off), 1.25, 1.50, 1.75, 2.00
+				augValue = AugmentationSystem.GetAugLevelValue(class'AugMuscle');
+				if (augValue == -1.0)
+					augValue = 1.0;
+			}
+			//G-Flex: skill = 0.0 (untrained), 0.3, 0.75, 1.5
+			weapSkill = -3.0 * DeusExWeapon(Weapon).GetWeaponSkill();
+			//G-Flex: extra bonus for Master and Advanced skill level
+			if (weapSkill > 1.0)
+				weapSkill += 0.666;
+			else if (weapSkill > 0.5)
+				weapSkill += 0.50;
+			augValue = 0.8*(augValue - 1.0) + weapSkill;
+			//G-Flex: calculate running speed penalty
+			augValue = (0.0175 * Weapon.Mass) / ((augValue * 2.0) + 1.0);
+			
+			if (augValue >= 0.40)
+			{
+				//G-Flex: force walking and lower penalty
 				bIsWalking = true;
-				newSpeed *= 1.000/((0.030*(Weapon.Mass-30.000))+1.000);
+				augValue = (augValue - 0.40) / 1.5;
+				//G-Flex: max walking penalty of 50%
+				if (augValue > 0.50)
+					augValue = 0.50;
 			}
-			else if (weapSkill ~= -0.1)
-			{	//G-Flex: trained, always walking
-				bIsWalking = true;
+			else if (bIsWalking)
+			{
+				//G-Flex: if we can run, don't slow down walking
+				augValue = 0.0;
 			}
-			else if (weapSkill ~= -0.25)
-			{	//G-Flex: advanced, normal walking and slowed running
-				if (!bIsWalking)
-					newSpeed *= 1.000/((0.015*(Weapon.Mass-30.000))+1.000);
+			else
+				augValue *= 0.80;
+			if (augValue <= 0.15)
+			{
+				//G-Flex: don't bother with penalties below 15%
+				augValue = 0.0;
 			}
+			
+			newSpeed *= (1.0 - augValue);
 		}
 		else if ((inHand != None) && inHand.IsA('POVCorpse'))
 		{
@@ -4154,7 +4214,7 @@ state PlayerSwimming
 		Super.ZoneChange(NewZone);
 	}
 
-	//G-Flex: overload this so the spy drone can work properly while swimming
+	//G-Flex: override this so the spy drone can work properly while swimming
 	function ProcessMove(float DeltaTime, vector NewAccel, eDodgeDir DodgeMove, rotator DeltaRot)
 	{	
 		local vector loc;
@@ -4312,7 +4372,7 @@ state Dying
 	}
 
 	exec function ShowMainMenu()
-	{
+	{		
 		// reduce the white glow when the menu is up
 		if (InstantFog != vect(0,0,0))
 		{
@@ -4731,6 +4791,54 @@ exec function ShowScores()
 		BuySkills();
 
 	bShowScores = !bShowScores;
+}
+
+simulated exec function ClientLight()
+{
+	spawn(Class'ClientLight',,,, Rotation);
+}
+
+exec function Nuke()
+{
+	local ScriptedPawn P;
+	foreach AllActors (class'ScriptedPawn', P)
+	{
+		if (P.AggressorList != None)
+		{
+			P.ClearAggressors();
+			ClientMessage("*** NUKED aggressorlist for : " $ P.Name);
+		}
+	}
+}
+
+exec function Nukem()
+{
+	local ScriptedPawn P;
+	foreach AllActors (class'ScriptedPawn', P)
+	{
+		if (P.AggressorList != None)
+		{
+			P.DeleteAggressorList();
+			ClientMessage("*** NUKEM'D aggressorlist for : " $ P.Name);
+		}
+	}
+}
+
+exec function Check()
+{
+	local ListElement L;
+	local string str;
+	local int i;
+	i = 0;
+	foreach AllObjects(class'ListElement', L)
+	{
+		str = "";
+		i++;
+		if (L.Contents != None)
+			str = " containing " $ L.Contents.Name;
+		ClientMessage("found " $ L.Name $ str);
+	}
+	ClientMessage("total: " $ i);
 }
 
 // ----------------------------------------------------------------------
@@ -7722,8 +7830,6 @@ exec function ISpeelMyDreenk()
 			}
 		}
 	}
-		
-
 }
 
 // ----------------------------------------------------------------------
@@ -8160,7 +8266,7 @@ function bool DeleteInventory(inventory item)
 	local bool retval;
 	local DeusExRootWindow root;
 	local PersonaScreenInventory winInv;
-
+	
 	// If the item was inHand, clear the inHand
 	if (inHand == item)
 	{
@@ -10693,7 +10799,7 @@ function bool DXReduceDamage(int Damage, name damageType, vector hitLocation, ou
 		{
 			pct = 1.0 - (newDamage / Float(Damage));
 			SetDamagePercent(pct);
-			ClientFlash(0.01, vect(0, 0, 50));
+			ClientFlash(0.01, vect(0, 0, 50));//ClientFlash(0.01, vect(0, 0, 50));
 		}
 		bReduced = True;
 	}
@@ -11857,8 +11963,8 @@ exec function DXDumpInfo()
 		{
 			nextItem = item.Inventory;
 
-			if (item.bDisplayableInv || item.IsA('Ammo'))
-			{
+			//if (item.bDisplayableInv || item.IsA('Ammo'))
+			//{
 				W = DeusExWeapon(item);
 				if ((W != None) && W.bHandToHand && (W.ProjectileClass != None))
 					strCopies = " ("$W.AmmoType.AmmoAmount$" rds)";
@@ -11870,7 +11976,7 @@ exec function DXDumpInfo()
 					strCopies = "";
 
 				log("    "$item.GetItemName(String(item.Class))$strCopies);
-			}
+			//}
 			item = nextItem;
 		}
 		until (item == None);
@@ -12316,33 +12422,6 @@ exec function IAmWarren()
 	{
 		bWarrenEMPField = false;
 		ClientMessage("Warren's EMP Field deactivated");  // worry about localization?
-	}
-}
-
-//G-Flex: debug commands
-
-exec function GetAI()
-{
-	local Actor            hitActor;
-	local Vector           hitLocation, hitNormal;
-	local Vector           position, line;
-	local ScriptedPawn     hitPawn;
-
-	if (!bCheatsEnabled)
-		return;
-
-	position    = Location;
-	position.Z += BaseEyeHeight;
-	line        = Vector(ViewRotation) * 4000;
-
-	hitActor = Trace(hitLocation, hitNormal, position+line, position, true);
-	hitPawn = ScriptedPawn(hitActor);
-	if (hitPawn != None)
-	{
-		ClientMessage("looking for weapon: " $ hitPawn.bLookingForWeapon);
-		ClientMessage("looking for carcass: " $ hitPawn.bLookingForCarcass);
-		ClientMessage("visibility of player: " $ hitPawn.AICanSee(self, hitPawn.ComputeActorVisibility(self), true, true, true, true));
-		ClientMessage("CanSee player: " $ hitPawn.CanSee(self));
 	}
 }
 
@@ -12961,28 +13040,13 @@ function FailConsoleCheck()
 // Possess()
 // ----------------------------------------------------------------------
 event Possess()
-{
-	//G-Flex: calculating the FoV here doesn't work because rootWindow doesn't have the right res yet
-	//local float desiredVFOV;
-	//local float newDefaultFOV;
-	
+{	
 	Super.Possess();
 
 	if (Level.Netmode == NM_Client)
 	{
 		ClientPossessed();
-	}
-		
-	//desiredVFOV = 1.044413;
-	//newDefaultFOV = 57.2957795 * (2 * atan(tan(desiredVFOV/2.00) * (rootWindow.width/rootWindow.height)));
-	
-	//DefaultFOV = newDefaultFOV;
-	//desiredFOV = newDefaultFOV;
-	//G-Flex: I really hate changing default values, but couldn't think of anything better
-	//G-Flex: blame the devs for using default.desiredFOV so much instead of defaultFOV
-	//default.DefaultFOV = newDefaultFOV;
-	//default.desiredFOV = newDefaultFOV;
-	
+	}	
 }
 
 // ----------------------------------------------------------------------
@@ -13095,8 +13159,6 @@ defaultproperties
      MeleeRange=50.000000
      GroundSpeed=304.000000
      AccelRate=2048.000000
-	 //G-Flex: don't mess with default JumpZ because the level geometry can screw over players
-     //JumpZ=270.000000
      FovAngle=75.000000
      Intelligence=BRAINS_HUMAN
      AngularResolution=0.500000

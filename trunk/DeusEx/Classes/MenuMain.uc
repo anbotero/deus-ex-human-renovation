@@ -72,13 +72,22 @@ function UpdateButtonStatus()
 function ShowVersionInfo()
 {
 	local TextWindow version;
+	//G-Flex: also show mod version
+	local string modStr, str;
+	modStr = "";
+	
+	str = player.GetDeusExVersion();
+	modStr = class'Tools'.static.GetDeusExModVersion();
+	if (modStr != "")
+		str = str $ CarriageReturn() $ modStr;
 
 	version = TextWindow(NewChild(Class'TextWindow'));
 	version.SetTextMargins(0, 0);
 	version.SetWindowAlignments(HALIGN_Right, VALIGN_Bottom);
 	version.SetTextColorRGB(255, 255, 255);
 	version.SetTextAlignments(HALIGN_Right, VALIGN_Bottom);
-	version.SetText(player.GetDeusExVersion());
+	//version.SetText(player.GetDeusExVersion());
+	version.SetText(str);
 }
 
 // ----------------------------------------------------------------------
@@ -110,7 +119,7 @@ defaultproperties
      buttonDefaults(9)=(Y=359,Action=MA_Quit)
      Title="Welcome to DEUS EX"
      ClientWidth=258
-     ClientHeight=400
+     ClientHeight=413//400
      verticalOffset=2
      clientTextures(0)=Texture'DeusExUI.UserInterface.MenuMainBackground_1'
      clientTextures(1)=Texture'DeusExUI.UserInterface.MenuMainBackground_2'

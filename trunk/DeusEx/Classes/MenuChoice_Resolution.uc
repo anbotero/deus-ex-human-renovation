@@ -54,10 +54,11 @@ function LoadSetting()
 // ----------------------------------------------------------------------
 // SaveSetting()
 // ----------------------------------------------------------------------
-
+//G-Flex: modified to change FOV
 function SaveSetting()
 {
 	local String resText;
+	local float oldFOV, newFOV, oldDefaultFOV, newDefaultFOV, oldAspect, newAspect;
 
 	// Only attempt to change resolutions if the resolution has 
 	// actually changed.
@@ -65,7 +66,20 @@ function SaveSetting()
 
 	if ( resText != player.ConsoleCommand("GetCurrentRes") )
 	{
+		oldFOV = player.DesiredFOV;
+		oldDefaultFOV = player.Default.DefaultFOV;
+		oldAspect = player.rootWindow.width/player.rootWindow.height;
 		player.ConsoleCommand("SetRes " $ resText);
+
+		newAspect = player.rootWindow.width/player.rootWindow.height;
+		newFOV = class'Tools'.static.AspectCorrectHFOV(oldFOV, oldAspect, newAspect);
+		newDefaultFOV = class'Tools'.static.AspectCorrectHFOV(oldDefaultFOV, oldAspect, newAspect);
+		
+		player.DefaultFOV = newDefaultFOV;
+		player.DesiredFOV = newFOV;
+		player.SetFOVAngle(newFOV);
+		player.default.DefaultFOV = newDefaultFOV;
+		player.default.desiredFOV = newDefaultFOV;
 	}
 }
 
@@ -93,7 +107,7 @@ function GetScreenResolutions()
 {
 	local int p;
 	local int resX;
-	local int resWidth;
+	local int resWidth, resHeight;
 	local int choiceCount;
 	local string ParseString;
 	local string Resolutions[48];
@@ -116,13 +130,14 @@ function GetScreenResolutions()
 		// Only support resolutions >= 640x480
 		resX = InStr(resString,"x");
 		resWidth = int(Left(resString, resX));
+		//G-Flex: make sure it's at least as tall as 480 too, dummy
+		resHeight = int(Right(resString, (Len(resString) - resX - 1)));
 
-		if ( resWidth >= 640 )
+		if (( resWidth >= 640 ) && ( resHeight >= 480 ))
 		{
 			enumText[choiceCount] = resString;
 			choiceCount++;
 		}
-
 		if ( p == -1 ) 
 			break;
 

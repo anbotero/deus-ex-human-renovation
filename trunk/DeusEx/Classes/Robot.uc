@@ -101,7 +101,7 @@ simulated event Destroyed()
 
 function Carcass SpawnCarcass()
 {
-	Explode(Location);
+	Explode();
 
 	return None;
 }
@@ -290,7 +290,7 @@ function ComputeFallDirection(float totalTime, int numFrames,
 }
 
 
-function Explode(vector HitLocation)
+function Explode()
 {
 	local int i, num;
 	local float explosionRadius;
@@ -301,32 +301,36 @@ function Explode(vector HitLocation)
 	explosionRadius = (CollisionRadius + CollisionHeight) / 2;
 	PlaySound(explosionSound, SLOT_None, 2.0,, explosionRadius*32);
 
-	if (explosionRadius < 48.0)
-		PlaySound(sound'LargeExplosion1', SLOT_None,,, explosionRadius*32);
-	else
-		PlaySound(sound'LargeExplosion2', SLOT_None,,, explosionRadius*32);
-
-	AISendEvent('LoudNoise', EAITYPE_Audio, , explosionRadius*16);
-
-	// draw a pretty explosion
-	light = Spawn(class'ExplosionLight',,, HitLocation);
-	for (i=0; i<explosionRadius/20+1; i++)
+	//G-Flex: fudge it in case someone sets a robot to bExplodeOnDeath=False
+	if (bExplodeOnDeath)
 	{
-		loc = Location + VRand() * CollisionRadius;
-		if (explosionRadius < 16)
-		{
-			Spawn(class'ExplosionSmall',,, loc);
-			light.size = 2;
-		}
-		else if (explosionRadius < 32)
-		{
-			Spawn(class'ExplosionMedium',,, loc);
-			light.size = 4;
-		}
+		if (explosionRadius < 48.0)
+			PlaySound(sound'LargeExplosion1', SLOT_None,,, explosionRadius*32);
 		else
+			PlaySound(sound'LargeExplosion2', SLOT_None,,, explosionRadius*32);
+
+		AISendEvent('LoudNoise', EAITYPE_Audio, , explosionRadius*16);
+
+		// draw a pretty explosion
+		light = Spawn(class'ExplosionLight');
+		for (i=0; i<explosionRadius/20+1; i++)
 		{
-			Spawn(class'ExplosionLarge',,, loc);
-			light.size = 8;
+			loc = Location + VRand() * CollisionRadius;
+			if (explosionRadius < 16)
+			{
+				Spawn(class'ExplosionSmall',,, loc);
+				light.size = 2;
+			}
+			else if (explosionRadius < 32)
+			{
+				Spawn(class'ExplosionMedium',,, loc);
+				light.size = 4;
+			}
+			else
+			{
+				Spawn(class'ExplosionLarge',,, loc);
+				light.size = 8;
+			}
 		}
 	}
 
@@ -339,6 +343,8 @@ function Explode(vector HitLocation)
 		{
 			s.Instigator = Instigator;
 			s.CalcVelocity(Velocity, explosionRadius);
+			if (!bExplodeOnDeath)
+				s.Velocity *= 0.75;
 			s.DrawScale = explosionRadius*0.075*FRand();
 			s.Skin = GetMeshTexture();
 			if (FRand() < 0.75)
@@ -347,7 +353,11 @@ function Explode(vector HitLocation)
 	}
 
 	// cause the damage
-	HurtRadius(0.5*explosionRadius, 8*explosionRadius, 'Exploded', 100*explosionRadius, Location);
+	if (bExplodeOnDeath)
+	{
+		class'Tools'.static.NewHurtRadius(self, 0.5*explosionRadius, 8*explosionRadius, 'Exploded', 100*explosionRadius, Location,
+			Vect(0,0,1));
+	}
 }
 
 function TweenToRunningAndFiring(float tweentime)
@@ -612,6 +622,8 @@ defaultproperties
      bAvoidHarm=False
      bHateShot=False
      bReactAlarm=True
+	 //G-Flex: don't make air bubbles underwater
+	 bSpawnBubbles=False
      bReactProjectiles=False
      bEmitDistress=False
      RaiseAlarm=RAISEALARM_Never
@@ -631,5 +643,6 @@ defaultproperties
      HitSound2=Sound'DeusExSounds.Generic.Spark1'
      Die=Sound'DeusExSounds.Generic.Spark1'
      VisibilityThreshold=0.006000
+	 bExplodeOnDeath=True
      BindName="Robot"
 }

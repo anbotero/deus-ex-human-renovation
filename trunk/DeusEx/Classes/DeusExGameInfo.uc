@@ -7,10 +7,6 @@ class DeusExGameInfo expands GameInfo
 var Float PauseStartTime;
 var Float PauseEndTime;
 
-
-
-
-
 // ----------------------------------------------------------------------
 // Login()
 // ----------------------------------------------------------------------
@@ -27,14 +23,6 @@ event playerpawn Login
 	local NavigationPoint StartSpot;
 	local byte InTeam;
 	local DumpLocation dump;
-
-
-
-
-
-
-
-
 
    //DEUS_EX AMSD In non multiplayer games, force JCDenton.
    if (!ApproveClass(SpawnClass))
@@ -165,15 +153,6 @@ function bool SetPause(BOOL bPause, PlayerPawn P)
 
 	Super.SetPause(bPause, P);
 }
-
-
-
-
-
-
-
-
-
 
 defaultproperties
 {

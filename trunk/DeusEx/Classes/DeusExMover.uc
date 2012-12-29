@@ -41,6 +41,16 @@ var() sound				ExplodeSound2;			// large explosion sound
 var() bool				bDrawExplosion;			// should we draw an explosion?
 var() bool				bIsDoor;				// is this mover an actual door?
 
+//G-Flex: from DeusExDecoration
+var() bool bExplosive;				// does this object explode when destroyed?
+var() int explosionDamage;			// how much damage does the explosion cause?
+var() float explosionRadius;		// how big is the explosion?
+
+var int gradualHurtSteps;			// how many separate explosions for the staggered HurtRadius
+var int gradualHurtCounter;			// which one are we currently doing
+//G-Flex: since we move out of the way while exploding
+var vector formerLocation;
+
 var() float          TimeSinceReset;   // how long since we relocked it
 var() float          TimeToReset;      // how long between relocks
 
@@ -275,32 +285,34 @@ function BlowItUp(Pawn instigatedBy)
 		}
 	}
 
-	// should we draw explosion effects?
-	if (bDrawExplosion)
+	if (!bExplosive)
 	{
-		light = Spawn(class'ExplosionLight',,, spawnLoc);
-		if (FragmentSpread < 64)
+		// should we draw explosion effects?
+		if (bDrawExplosion)
 		{
-			Spawn(class'ExplosionSmall',,, spawnLoc);
-			if (light != None)
-				light.size = 2;
+			light = Spawn(class'ExplosionLight',,, spawnLoc);
+			if (FragmentSpread < 64)
+			{
+				Spawn(class'ExplosionSmall',,, spawnLoc);
+				if (light != None)
+					light.size = 2;
+			}
+			else if (FragmentSpread < 128)
+			{
+				Spawn(class'ExplosionMedium',,, spawnLoc);
+				if (light != None)
+					light.size = 4;
+			}
+			else
+			{
+				Spawn(class'ExplosionLarge',,, spawnLoc);
+				if (light != None)
+					light.size = 8;
+			}
 		}
-		else if (FragmentSpread < 128)
-		{
-			Spawn(class'ExplosionMedium',,, spawnLoc);
-			if (light != None)
-				light.size = 4;
-		}
-		else
-		{
-			Spawn(class'ExplosionLarge',,, spawnLoc);
-			if (light != None)
-				light.size = 8;
-		}
+		// alert NPCs that I'm breaking
+		AISendEvent('LoudNoise', EAITYPE_Audio, 2.0, FragmentSpread * 16);
 	}
-
-	// alert NPCs that I'm breaking
-	AISendEvent('LoudNoise', EAITYPE_Audio, 2.0, FragmentSpread * 16);
 
 	MakeNoise(2.0);
 	if (frag != None)
@@ -311,11 +323,89 @@ function BlowItUp(Pawn instigatedBy)
 			frag.PlaySound(ExplodeSound2, SLOT_None, 2.0,, FragmentSpread*256);
 	}
 
-   //DEUS_EX AMSD Mover is dead, make it a dumb proxy so location updates
-   RemoteRole = ROLE_DumbProxy;
-	SetLocation(Location+vect(0,0,20000));		// move it out of the way
-	SetCollision(False, False, False);			// and make it non-colliding
-	bDestroyed = True;
+	if (bExplosive)
+		Explode(spawnLoc);
+	else
+	{
+	   //DEUS_EX AMSD Mover is dead, make it a dumb proxy so location updates
+	   RemoteRole = ROLE_DumbProxy;
+		SetLocation(Location+vect(0,0,20000));		// move it out of the way
+		SetCollision(False, False, False);			// and make it non-colliding
+		bDestroyed = True;
+	}
+}
+
+// ----------------------------------------------------------------------
+// Explode()
+// Blow it up real good!
+//
+// G-Flex: from DeusExDecoration
+// ----------------------------------------------------------------------
+function Explode(vector HitLocation)
+{
+	local ShockRing ring;
+	local ScorchMark s;
+	local ExplosionLight light;
+	local int i;
+
+	// make sure we wake up when taking damage
+	bStasis = False;
+
+	// alert NPCs that I'm exploding
+	AISendEvent('LoudNoise', EAITYPE_Audio, 2.0, explosionRadius * 16);
+
+	if (explosionRadius <= 128)
+		PlaySound(Sound'SmallExplosion1', SLOT_None,,, explosionRadius*16);
+	else
+		PlaySound(Sound'LargeExplosion1', SLOT_None,,, explosionRadius*16);
+
+	formerLocation = HitLocation;
+	SetLocation(Location+vect(0,0,20000));
+	SetCollision(False, False, False);
+
+	// draw a pretty explosion
+	light = Spawn(class'ExplosionLight',,, HitLocation);
+	if (explosionRadius < 128)
+	{
+		Spawn(class'ExplosionSmall',,, HitLocation);
+		light.size = 2;
+	}
+	else if (explosionRadius < 256)
+	{
+		Spawn(class'ExplosionMedium',,, HitLocation);
+		light.size = 4;
+	}
+	else
+	{
+		Spawn(class'ExplosionLarge',,, HitLocation);
+		light.size = 8;
+	}
+
+	// draw a pretty shock ring
+	ring = Spawn(class'ShockRing',,, HitLocation, rot(16384,0,0));
+	if (ring != None)
+		ring.size = explosionRadius / 32.0;
+	ring = Spawn(class'ShockRing',,, HitLocation, rot(0,0,0));
+	if (ring != None)
+		ring.size = explosionRadius / 32.0;
+	ring = Spawn(class'ShockRing',,, HitLocation, rot(0,16384,0));
+	if (ring != None)
+		ring.size = explosionRadius / 32.0;
+
+	//G-Flex: don't bother with this stuff
+	/*// spawn a mark
+	s = spawn(class'ScorchMark', Base,, Location-vect(0,0,1)*CollisionHeight, Rotation+rot(16384,0,0));
+	if (s != None)
+	{
+		s.DrawScale = FClamp(explosionDamage/30, 0.1, 3.0);
+		s.ReattachDecal();
+	}
+
+	// spawn some rocks
+	for (i=0; i<explosionDamage/30+1; i++)
+		if (FRand() < 0.8)
+			spawn(class'Rockchip',,,HitLocation);*/
+	GotoState('Exploding');
 }
 
 //
@@ -372,6 +462,9 @@ function TakeDamage(int Damage, Pawn instigatedBy, Vector hitlocation, Vector mo
 		//G-Flex: make sure to keep TraceHitSpawner correct too
 		if ((DamageType != 'Sabot') && (DamageType != 'Exploded') && (!IsA('BreakableGlass')))
 			Damage *= 0.666;
+		//G-Flex: further damage reduction from fire
+		if ((DamageType == 'Burned') || (DamageType == 'Flamed'))
+			Damage *= 0.333;
 		//G-Flex: sabot no longer needs a boost since it's one actual shell
 		if (Damage >= minDamageThreshold)
 			doorStrength -= Damage * 0.01;
@@ -742,6 +835,84 @@ state() TriggerPound
 	}
 }
 
+//G-Flex: destroy when triggered, for e.g. breakable walls
+state() TriggerDestroy
+{
+	function Trigger( actor Other, pawn EventInstigator )
+	{
+		if (!bDestroyed)
+				BlowItUp(EventInstigator);
+	}
+}
+
+// ----------------------------------------------------------------------
+// Exploding state
+//
+// G-Flex: from DeusExDecoration
+// ----------------------------------------------------------------------
+
+state Exploding
+{
+	ignores Explode;
+
+	function Timer()
+	{
+		local Pawn apawn;
+		local float damageRadius;
+		local Vector dist;
+		
+		if (bDestroyed)
+			return;
+
+		if ( Level.NetMode != NM_Standalone )
+		{
+			damageRadius = (explosionRadius / gradualHurtSteps) * gradualHurtCounter;
+
+			for ( apawn = Level.PawnList; apawn != None; apawn = apawn.nextPawn )
+			{
+				if ( apawn.IsA('DeusExPlayer') )
+				{
+					dist = apawn.Location - formerLocation;
+					if ( VSize(dist) < damageRadius )
+						DeusExPlayer(apawn).myProjKiller = Self;
+				}
+			}
+		}
+		class'Tools'.static.NewHurtRadius
+		(
+			self,
+			(2 * explosionDamage) / gradualHurtSteps,
+			(explosionRadius / gradualHurtSteps) * gradualHurtCounter,
+			'Exploded',
+			(explosionDamage / gradualHurtSteps) * 100,
+			formerLocation,
+			Vect(0,0,1)
+		);
+		
+		if (++gradualHurtCounter >= gradualHurtSteps)
+		{
+			//DEUS_EX AMSD Mover is dead, make it a dumb proxy so location updates
+		   RemoteRole = ROLE_DumbProxy;
+			//SetLocation(Location+vect(0,0,20000));		// move it out of the way
+			//SetCollision(False, False, False);			// and make it non-colliding
+			bDestroyed = True;
+			SetTimer(0.01, False);
+		}
+			//Destroy();
+	}
+
+Begin:
+	// stagger the HurtRadius outward using Timer()
+	// do five separate blast rings increasing in size
+	gradualHurtCounter = 1;
+	gradualHurtSteps = 5;
+	//bHidden = True;
+	//formerLocation = Location;
+	//SetLocation(Location+vect(0,0,20000));
+	//SetCollision(False, False, False);
+	SetTimer(0.5/float(gradualHurtSteps), True);
+}
+
 defaultproperties
 {
      bPickable=True
@@ -771,4 +942,7 @@ defaultproperties
      bBlockSight=True
      InitialState=TriggerToggle
      bDirectional=True
+	 bExplosive=False
+	 explosionDamage=100
+     explosionRadius=768.000000
 }

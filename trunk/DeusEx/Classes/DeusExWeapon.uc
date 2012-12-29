@@ -517,7 +517,19 @@ function BringUp()
 	// reset the standing still accuracy bonus
 	standingTimer = 0;
 
-	Super.BringUp();
+	//G-Flex: Override Super.BringUp() so we don't do EndZoom() on the player
+	//Super.BringUp();
+	
+	if ( Owner.IsA('DeusExPlayer') )
+	{
+		SetHand(DeusExPlayer(Owner).Handedness);
+		if (( Level.NetMode != NM_Standalone ) && (Role == ROLE_Authority))
+			ClientSetHandedness( DeusExPlayer(Owner).Handedness );
+		//PlayerPawn(Owner).EndZoom();
+	}	
+	bWeaponUp = false;
+	PlaySelect();
+	GotoState('Active');
 }
 
 function bool PutDown()
@@ -1172,6 +1184,8 @@ function PlaceGrenade()
 	gren = ThrownProjectile(spawn(ProjectileClass, Owner,, placeLocation, Rotator(placeNormal)));
 	if (gren != None)
 	{
+		//G-Flex: for explosions
+		gren.WallNormal = placeNormal;
 		AmmoType.UseAmmo(1);
 		if ( AmmoType.AmmoAmount <= 0 )
 			bDestroyOnFinish = True;
@@ -1563,23 +1577,18 @@ simulated function Tick(float deltaTime)
 
 				ShakeAngle += ShakeAngleAccel * deltaTime;
 				//G-Flex: using mixed units sucks, but we need to
-				ShakeYaw = 10430.3783505 * atan(tan(ShakeMagnitudeAdjust * 0.000095873799)*cos(ShakeAngle));//ShakeMagnitudeAdjust * Cos(ShakeAngle);
-				ShakePitch = 10430.3783505 * atan(tan(ShakeMagnitudeAdjust * 0.000095873799)*sin(ShakeAngle));//ShakeMagnitudeAdjust * Sin(ShakeAngle);
+				ShakeYaw = 10430.3783505 * atan(tan(ShakeMagnitudeAdjust * 0.000095873799)*cos(ShakeAngle));
+				ShakePitch = 10430.3783505 * atan(tan(ShakeMagnitudeAdjust * 0.000095873799)*sin(ShakeAngle));
 				LaserYaw += ShakeYaw * deltaTime;
 				LaserPitch += ShakePitch * deltaTime;
 				LaserYawProportion = LaserYaw / accunit;
 				LaserPitchProportion = LaserPitch / accunit;
-				//DeusExPlayer(owner).ClientMessage(LaserPitchProportion);
-				//LaserYawProportion = Square(LaserYawProportion);
-				//LaserPitchProportion = Square(LaserPitchProportion);
 				if (LaserYaw < 0)
 					LaserYawProportion = ((-1.0000*Square(LaserYawProportion)) + (2.0000 * LaserYawProportion)) / 3.0000;
-					//LaserYawProportion *= -1.0;
 				else
 					LaserYawProportion = (Square(LaserYawProportion) + (2.0000 * LaserYawProportion)) / 3.0000;
 				if (LaserPitch < 0)
 					LaserPitchProportion = ((-1.0000*Square(LaserPitchProportion)) + (2.0000 * LaserPitchProportion)) / 3.0000;
-					//LaserPitchProportion *= -1.0;
 				else
 					LaserPitchProportion = (Square(LaserPitchProportion) + (2.0000 * LaserPitchProportion)) / 3.0000;
 				LaserYaw -= LaserYawProportion * deltaTime * (900 + 0.75*accunit * (1 + velMagnitude/200));
@@ -1920,6 +1929,74 @@ simulated function int PlaySimSound( Sound snd, ESoundSlot Slot, float Volume, f
 	return 0;
 }
 
+//G-Flex: Overridden from Weapon to allow visibility while drugged
+simulated event RenderOverlays( canvas Canvas )
+{
+	local rotator NewRot;
+	local bool bPlayerOwner;
+	local int Hand;
+	local PlayerPawn PlayerOwner;
+
+	if ( bHideWeapon || (Owner == None) )
+		return;
+
+	PlayerOwner = PlayerPawn(Owner);
+
+	if ( PlayerOwner != None )
+	{
+		//if ( PlayerOwner.DesiredFOV != PlayerOwner.DefaultFOV )
+		if (bZoomed)
+			return;
+		bPlayerOwner = true;
+		Hand = PlayerOwner.Handedness;
+
+		if (  (Level.NetMode == NM_Client) && (Hand == 2) )
+		{
+			bHideWeapon = true;
+			return;
+		}
+	}
+
+	if ( !bPlayerOwner || (PlayerOwner.Player == None) )
+		Pawn(Owner).WalkBob = vect(0,0,0);
+
+	if ( (bMuzzleFlash > 0) && bDrawMuzzleFlash && Level.bHighDetailMode && (MFTexture != None) )
+	{
+		MuzzleScale = Default.MuzzleScale * Canvas.ClipX/640.0;
+		if ( !bSetFlashTime )
+		{
+			bSetFlashTime = true;
+			FlashTime = Level.TimeSeconds + FlashLength;
+		}
+		else if ( FlashTime < Level.TimeSeconds )
+			bMuzzleFlash = 0;
+		if ( bMuzzleFlash > 0 )
+		{
+			if ( Hand == 0 )
+				Canvas.SetPos(Canvas.ClipX/2 - 0.5 * MuzzleScale * FlashS + Canvas.ClipX * (-0.2 * Default.FireOffset.Y * FlashO), Canvas.ClipY/2 - 0.5 * MuzzleScale * FlashS + Canvas.ClipY * (FlashY + FlashC));
+			else
+				Canvas.SetPos(Canvas.ClipX/2 - 0.5 * MuzzleScale * FlashS + Canvas.ClipX * (Hand * Default.FireOffset.Y * FlashO), Canvas.ClipY/2 - 0.5 * MuzzleScale * FlashS + Canvas.ClipY * FlashY);
+
+			Canvas.Style = 3;
+			Canvas.DrawIcon(MFTexture, MuzzleScale);
+			Canvas.Style = 1;
+		}
+	}
+	else
+		bSetFlashTime = false;
+
+	SetLocation( Owner.Location + CalcDrawOffset() );
+	NewRot = Pawn(Owner).ViewRotation;
+
+	if ( Hand == 0 )
+		newRot.Roll = -2 * Default.Rotation.Roll;
+	else
+		newRot.Roll = Default.Rotation.Roll * Hand;
+
+	setRotation(newRot);
+	Canvas.DrawActor(self, false);
+}
+
 //
 // ClientFire - Attempts to play the firing anim, sounds, and trace fire hits for instant weapons immediately
 //				on the client.  The server may have a different interpretation of what actually happen, but this at least
@@ -2181,8 +2258,8 @@ simulated function ResetShake()
 		//LaserAngle = (Rand(3072) - 1536);
 		LaserAngle = (Rand(3840) - 1920);
 		LaserDirection = (FRand() * 2 * pi);
-		LaserYaw = 10430.3783505 * atan(tan(LaserAngle * 0.000095873799) * cos(LaserDirection));//LaserAngle * Cos(LaserDirection);
-		LaserPitch = 10430.3783505 * atan(tan(LaserAngle * 0.000095873799) * sin(LaserDirection));//LaserAngle * Sin(LaserDirection);
+		LaserYaw = 10430.3783505 * atan(tan(LaserAngle * 0.000095873799) * cos(LaserDirection));
+		LaserPitch = 10430.3783505 * atan(tan(LaserAngle * 0.000095873799) * sin(LaserDirection));
 		ShakeMagnitude = 900 + (0.75 * Rand(1920));
 		ShakeMagnitudeToward = 900 + (0.75 * Rand(1920));
 		ShakeAngleAccel = (FRand() * 4 * pi) - (2 * pi);
@@ -2650,13 +2727,31 @@ simulated function Projectile DoProjectileFire(class<projectile> ProjClass, floa
 	mult += -2.0 * GetWeaponSkill();
 
 	// make noise if we are not silenced
-	if (!bHasSilencer && !bHandToHand)
+	/*if (!bHasSilencer && !bHandToHand)
 	{
 		GetAIVolume(volume, radius);
 		Owner.AISendEvent('WeaponFire', EAITYPE_Audio, volume, radius);
 		Owner.AISendEvent('LoudNoise', EAITYPE_Audio, volume, radius);
 		if (!Owner.IsA('PlayerPawn'))
 			Owner.AISendEvent('Distress', EAITYPE_Audio, volume, radius);
+	}*/
+	//G-Flex: send visual signal of shot fired if silenced
+	if (!bHandToHand)
+	{
+		GetAIVolume(volume, radius);
+		if (volume > 0.0)
+		{
+			Owner.AISendEvent('WeaponFire', EAITYPE_Audio, volume, radius);
+			Owner.AISendEvent('LoudNoise', EAITYPE_Audio, volume, radius);
+			if (!Owner.IsA('PlayerPawn'))
+				Owner.AISendEvent('Distress', EAITYPE_Audio, volume, radius);
+		}
+		else
+		{
+			Owner.AISendEvent('WeaponFire', EAITYPE_Visual);
+			if (!Owner.IsA('PlayerPawn'))
+				Owner.AISendEvent('Distress', EAITYPE_Visual);
+		}
 	}
 
 	// should we shoot multiple projectiles in a spread?
@@ -2689,8 +2784,8 @@ simulated function Projectile DoProjectileFire(class<projectile> ProjClass, floa
 			fireAngle = Accuracy * (Rand(3840) - 1920);
 			//fireAngle = Accuracy * (Rand(3072) - 1536);
 			fireRotationAngle = FRand() * 2 * pi;
-			AdjustedAim.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
-			AdjustedAim.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));//fireangle * Sin(fireRotationAngle);
+			AdjustedAim.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));
+			AdjustedAim.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));
 		}
 		//G-Flex: use old method for NPCs/hand-to-hand like DoTraceFire()
 		else
@@ -2802,13 +2897,23 @@ simulated function DoTraceFire( float Accuracy )
 	pi = 3.1415926535897932;
 	
 	// make noise if we are not silenced
-	if (!bHasSilencer && !bHandToHand)
+	//G-Flex: send visual signal of shot fired if silenced
+	if (!bHandToHand)
 	{
 		GetAIVolume(volume, radius);
-		Owner.AISendEvent('WeaponFire', EAITYPE_Audio, volume, radius);
-		Owner.AISendEvent('LoudNoise', EAITYPE_Audio, volume, radius);
-		if (!Owner.IsA('PlayerPawn'))
-			Owner.AISendEvent('Distress', EAITYPE_Audio, volume, radius);
+		if (volume > 0.0)
+		{
+			Owner.AISendEvent('WeaponFire', EAITYPE_Audio, volume, radius);
+			Owner.AISendEvent('LoudNoise', EAITYPE_Audio, volume, radius);
+			if (!Owner.IsA('PlayerPawn'))
+				Owner.AISendEvent('Distress', EAITYPE_Audio, volume, radius);
+		}
+		else
+		{
+			Owner.AISendEvent('WeaponFire', EAITYPE_Visual);
+			if (!Owner.IsA('PlayerPawn'))
+				Owner.AISendEvent('Distress', EAITYPE_Visual);
+		}
 	}
 
 	GetAxes(Pawn(owner).ViewRotation,X,Y,Z);
@@ -2842,21 +2947,8 @@ simulated function DoTraceFire( float Accuracy )
 		detLevel = DeusExPlayer(GetPlayerPawn()).ConsoleCommand("get ini:Engine.Engine.ViewportManager TextureDetail");
 
 	//G-Flex: calculate spread for multishot weapons
-	//G-Flex: make sabot pellets all hit the same location (TERRIBLE!)
 	spreadAccuracy = 0.0;
-	/*if (AmmoType != None)
-	{
-		if (!AmmoType.IsA('AmmoSabot'))
-		{
-			if ((Owner.IsA('PlayerPawn')) && (numSlugs > 1) && !(bHandToHand))
-				spreadAccuracy = MinSpreadAcc;
-			else if ((numSlugs > 1) && !(bHandToHand) && (Accuracy < minSpreadAcc))
-			{
-				Accuracy = MinSpreadAcc;
-			}
-		}
-	}*/
-	//G-Flex: sabot always hits the same spot
+	//G-Flex: sabot has one slug
 	//G-Flex: damage MUST be compensated for elsewhere!
 	if ((AmmoType != None) && AmmoType.IsA('AmmoSabot'))
 		numSlugs = 1;
@@ -2876,9 +2968,7 @@ simulated function DoTraceFire( float Accuracy )
 		aimRot = Emitter.Rotation;
 	}
 	else if (Accuracy > 0.0)
-	{		
-		//== Use a new, consistent method for calculating aim offsets.  Works just like the laser sight
-		//G-Flex: use that method to make realistic bullet spread. Wow!
+	{
 		//G-Flex: calculate angle from center
 		//G-Flex: ACCURACY TESTING, larger cone to make up for more centralized spread
 		//G-Flex: 1.25 times the angle
@@ -2886,8 +2976,8 @@ simulated function DoTraceFire( float Accuracy )
 		fireAngle = Accuracy * (Rand(3840) - 1920);
 		//G-Flex: calculate direction from center
 		fireRotationAngle = FRand() * 2 * pi;
-		aimRot.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
-		aimRot.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));//fireangle * Sin(fireRotationAngle);
+		aimRot.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));
+		aimRot.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));
 	}
 	
 	//G-Flex: now determine where all the shots hit
@@ -2913,8 +3003,8 @@ simulated function DoTraceFire( float Accuracy )
 		//fireAngle = spreadAccuracy * (Rand(3072) - 1536);
 		fireAngle = (0.8 * spreadAccuracy) * (Rand(3840) - 1920);
 		fireRotationAngle = FRand() * 2 * pi;
-		rot.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));//fireAngle * Cos(fireRotationAngle);
-		rot.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));//fireangle * Sin(fireRotationAngle);
+		rot.Yaw += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * cos(fireRotationAngle));
+		rot.Pitch += 10430.3783505 * atan(tan(fireAngle * 0.000095873799) * sin(fireRotationAngle));
 		}
 		EndTrace = StartTrace + ( FMax(1024.0, MaxRange) * vector(rot) );
 	      }
@@ -3842,7 +3932,9 @@ state NormalFire
 		local float mult, sTime;
 
 		if (ScriptedPawn(Owner) != None)
-			return ShotTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			//G-Flex: make BaseAccuracy matter less since many NPCs are very accurate now
+			//return ShotTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			return ShotTime * (sqrt(ScriptedPawn(Owner).BaseAccuracy)+1);
 		else
 		{
 			// AugCombat decreases shot time
@@ -3964,7 +4056,9 @@ ignores Fire, AltFire;
 
 		if (ScriptedPawn(Owner) != None)
 		{
-			val = ReloadTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			//G-Flex: enemies reload faster and skill matters less
+			//val = ReloadTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			val = ReloadTime * (ScriptedPawn(Owner).BaseAccuracy*1.5+0.75);
 		}
 		else if (DeusExPlayer(Owner) != None)
 		{
@@ -4071,7 +4165,9 @@ simulated state ClientFiring
 		local float mult, sTime;
 
 		if (ScriptedPawn(Owner) != None)
-			return ShotTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			//G-Flex: make BaseAccuracy matter less since many NPCs are very accurate now
+			//return ShotTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			return ShotTime * (sqrt(ScriptedPawn(Owner).BaseAccuracy)+1);
 		else
 		{
 			// AugCombat decreases shot time
@@ -4233,7 +4329,9 @@ ignores Fire, AltFire, ClientFire, ClientReFire;
 
 		if (ScriptedPawn(Owner) != None)
 		{
-			val = ReloadTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			//G-Flex: enemies reload faster and skill matters less
+			//val = ReloadTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			val = ReloadTime * (ScriptedPawn(Owner).BaseAccuracy*1.5+0.75);
 		}
 		else if (DeusExPlayer(Owner) != None)
 		{
@@ -4318,7 +4416,9 @@ state FlameThrowerOn
 		local float mult, sTime;
 
 		if (ScriptedPawn(Owner) != None)
-			return ShotTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			//G-Flex: make BaseAccuracy matter less since many NPCs are very accurate now
+			//return ShotTime * (ScriptedPawn(Owner).BaseAccuracy*2+1);
+			return ShotTime * (sqrt(ScriptedPawn(Owner).BaseAccuracy)+1);
 		else
 		{
 			// AugCombat decreases shot time

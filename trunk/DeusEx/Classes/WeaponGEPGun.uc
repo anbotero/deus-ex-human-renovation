@@ -103,5 +103,6 @@ defaultproperties
      Mesh=LodMesh'DeusExItems.GEPGunPickup'
      CollisionRadius=27.000000
      CollisionHeight=6.600000
-     Mass=50.000000
+	 //G-Flex: a little heavier
+     Mass=55.000000//50.000000
 }
